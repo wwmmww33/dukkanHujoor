@@ -1017,12 +1017,57 @@ app.get('/jam3ya/dashboard', requireJam3yaAdmin, (req, res) => {
                         // Update t.date for display consistency
                         t.date = dateStr;
 
-                        if (t.subject === 'مساهمات الاعضاء' && dateStr && dateStr.startsWith(currentYear)) {
-                            paidMemberCodes.add(t.item);
+                        const subject = (t.subject || '').trim();
+                        const item = (t.item || '').toString().trim();
+                        // Normalize details: convert Arabic-Indic digits to ASCII and stringify
+                        let details = (t.details || '').toString();
+                        details = details.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+
+                        if (subject === 'مساهمات الاعضاء') {
+                            // Extract all 4-digit years from details (e.g., 2024, 2025)
+                            // We look for 20xx where xx is 20-30 to avoid matching other random 4-digit numbers if possible, 
+                            // but sticking to \b20\d{2}\b is safer for general years.
+                            const yearsInDetails = details.match(/\b20\d{2}\b/g);
+                            
+                            let isPaidForCurrentYear = false;
+
+                            if (yearsInDetails && yearsInDetails.length > 0) {
+                                // If details contain years, strict check against currentYear
+                                if (yearsInDetails.includes(currentYear)) {
+                                    isPaidForCurrentYear = true;
+                                }
+                            } else {
+                                // If details contain NO year, fallback to transaction date
+                                if (dateStr && dateStr.startsWith(currentYear)) {
+                                    isPaidForCurrentYear = true;
+                                }
+                            }
+
+                            if (isPaidForCurrentYear) {
+                                paidMemberCodes.add(item);
+                                // Debug log for specific member 1330 to verify logic in production
+                                if (item === '1330') {
+                                    console.log(`[DEBUG] Member 1330 Marked as PAID. Source: ${yearsInDetails ? 'Details (' + yearsInDetails + ')' : 'Date (' + dateStr + ')'}`);
+                                }
+                            }
                         }
                     });
 
-                    const unpaidMembers = members.filter(m => !paidMemberCodes.has(m.member_code) && (m.is_active == 1 || m.is_active == null));
+                    const unpaidMembers = members.filter(m => {
+                        const memberCode = (m.member_code || '').toString().trim();
+                        // Check if active (1 or null/undefined, but NOT 0)
+                        // Note: Loose equality (==) handles string '1' vs number 1
+                        const isActive = (m.is_active == 1 || m.is_active == null);
+                        
+                        // If inactive, exclude from unpaid list (return false)
+                        if (!isActive) return false;
+
+                        // If already paid, exclude from unpaid list (return false)
+                        if (paidMemberCodes.has(memberCode)) return false;
+
+                        // Otherwise, they are unpaid and active
+                        return true;
+                    });
 
                     res.render('jam3ya-dashboard', { 
                         members, 
