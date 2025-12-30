@@ -1,0 +1,362 @@
+<main class="main-content">
+        <div class="container">
+    <% 
+    const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const errorParam = typeof req !== 'undefined' && req.query ? req.query.error : null;
+    %>
+    
+    <% if (errorParam === 'admin_hidden') { %>
+        <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #f5c6cb;">
+            <strong>تنبيه:</strong> لا يمكنك تعديل هذا المنتج لأنه مخفي من قبل الإدارة.
+        </div>
+    <% } %>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h2 style="color: #2c3e50;">
+            <% if (typeof req !== 'undefined' && req.session && req.session.user && req.session.user.is_admin === 1) { %>
+                إدارة جميع المنتجات
+            <% } else { %>
+                منتجاتي
+            <% } %>
+        </h2>
+
+    </div>
+    
+    <% if (products.length === 0) { %>
+        <div style="text-align: center; padding: 50px; background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="color: #666;">لم تقم بإضافة أي منتجات بعد</h3>
+            <p style="color: #888; margin: 20px 0;">ابدأ ببيع منتجاتك الآن واربح المال!</p>
+            <a href="/add-product" class="btn btn-primary">إضافة أول منتج</a>
+        </div>
+    <% } else { %>
+        <div class="products-grid">
+            <% products.forEach(product => { %>
+               <div class="product-card <%= product.admin_hidden ? 'hidden-by-admin' : '' %>">
+                      <% if (product.product_condition) { %>
+                <div class="product-condition-badge <%= product.product_condition === 'new' ? 'badge-new' : 'badge-used' %>">
+                    <%= product.product_condition === 'new' ? 'جديد' : 'مستعمل' %>
+                </div>
+            <% } %>
+                    <% if (product.image_path) { %>
+<img src="/uploads/<%= product.image_path %>" alt="<%= product.name %>" class="product-image product-image-zoomable">
+                    <% } else { %>
+                        <div class="product-image" style="background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; color: #6c757d;">
+                            لا توجد صورة
+                        </div>
+                    <% } %>
+                    
+                    <div class="product-info">
+                        <h3 class="product-title"><%= product.name %></h3>
+                        <p class="product-price"><%= product.price %> ريال</p>
+                                    <% if (product.admin_hidden && !(req.session.user && req.session.user.is_admin)) { %>
+            <!-- --- عرض للمستخدم العادي عندما يكون المنتج مخفياً --- -->
+            <div class="admin-hidden-notice">
+                <h4>تم إخفاء هذا المنتج</h4>
+                <p><strong>السبب:</strong> <%= product.admin_hide_reason || 'غير محدد' %></p>
+                <p>إذا كنت تعتقد أن هذا خطأ، يمكنك التواصل مع الإدارة.</p>
+                <button onclick="contactAdmin('<%= product.name %>')" class="btn btn-secondary">تواصل مع الإدارة عبر واتساب</button>
+            </div>
+
+        <% } else { %>
+                        <% if (product.description) { %>
+                            <p class="product-description"><%= product.description %></p>
+                        <% } %>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <small style="color: #666;">
+                                التصنيف: <%= product.category_name || 'غير محدد' %>  
+                                      | الحالة: 
+                                <% if (product.product_condition === 'new') { %>
+                                    <span style="color: #27ae60; font-weight: bold;">جديد</span>
+                                <% } else { %>
+                                    <span style="color: #f39c12;">مستعمل</span>
+                                <% } %>|
+                                تاريخ الإضافة: <%= new Date(product.created_at).toLocaleDateString('en-GB') %>
+                                
+                                    <% if (req.session.user && req.session.user.is_admin && product.owner_name) { %>
+        <br><strong>المالك: <%= product.owner_name %></strong>
+    <% } %>
+                                <% if (typeof req !== 'undefined' && req.session && req.session.user && req.session.user.is_admin === 1 && product.owner_name) { %>
+                                    <br>المالك: <%= product.owner_name %>
+                                <% } %>
+                            </small>
+                        </div>
+                        
+                        <!-- حالة المنتج -->
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-weight: bold; margin-bottom: 5px; display: block;">حالة المنتج:</label>
+                            <select onchange="updateProductStatus(<%= product.id %>, this.value)" 
+                                    style="padding: 5px; border-radius: 3px; border: 1px solid #ddd;">
+                                <option value="available" <%= product.status === 'available' ? 'selected' : '' %>>متاح للبيع</option>
+                                <option value="sold" <%= product.status === 'sold' ? 'selected' : '' %>>مباع</option>
+                            </select>
+                        </div>
+                        
+                        <!-- إحصائيات المنتج -->
+                        <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666;">
+                                <span>الحالة: 
+                                    <% if (product.status === 'available') { %>
+                                        <span style="color: #27ae60; font-weight: bold;">متاح</span>
+                                    <% } else { %>
+                                        <span style="color: #e74c3c; font-weight: bold;">مباع</span>
+                                    <% } %>
+                                </span>
+                            </div>
+                        </div>
+                        
+                    <div class="product-actions" style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+    
+    <% if (req.session.user && req.session.user.is_admin) { %>
+        <!-- ====== أزرار المدير ====== -->
+        
+        <!-- زر التعديل للمدير -->
+        <a href="/edit-product/<%= product.id %>" class="btn btn-secondary" style="flex-grow: 1;">تعديل</a>
+        
+        <!-- زر إخفاء/إظهار -->
+        <% if (product.admin_hidden) { %>
+            <button onclick="showProduct(<%= product.id %>)" class="btn" style="background-color: var(--success-color); color: white; flex-grow: 1;">إظهار</button>
+        <% } else { %>
+            <button onclick="hideProduct(<%= product.id %>)" class="btn" style="background-color: var(--warning-color); color: #333; flex-grow: 1;">إخفاء</button>
+        <% } %>
+        
+        <!-- زر الحذف للمدير -->
+        <button onclick="deleteProductAdmin(<%= product.id %>)" class="btn" style="background-color: var(--error-color); color: white; flex-grow: 1;">حذف</button>
+
+    <% } else { %>
+        <!-- ====== أزرار المستخدم العادي ====== -->
+        <a href="/edit-product/<%= product.id %>" class="btn btn-secondary" style="flex-grow: 1;">تعديل</a>
+        <button onclick="deleteProduct(<%= product.id %>)" class="btn" style="background-color: var(--error-color); color: white; flex-grow: 1;">حذف</button>
+    <% } %>
+</div>
+<% } %>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+        
+        <!-- إحصائيات سريعة -->
+        <div style="margin-top: 40px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">إحصائيات سريعة</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                <div style="text-align: center; padding: 15px; background-color: #3498db; color: white; border-radius: 5px;">
+                    <h4><%= products.length %></h4>
+                    <p>إجمالي المنتجات</p>
+                </div>
+                <div style="text-align: center; padding: 15px; background-color: #27ae60; color: white; border-radius: 5px;">
+                    <h4><%= products.filter(p => p.status === 'available').length %></h4>
+                    <p>متاح للبيع</p>
+                </div>
+                <div style="text-align: center; padding: 15px; background-color: #e74c3c; color: white; border-radius: 5px;">
+                    <h4><%= products.filter(p => p.status === 'sold').length %></h4>
+                    <p>مباع</p>
+                </div>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+<script>
+    // عرض الرسائل
+    function showAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            max-width: 300px;
+        `;
+        
+        if (type === 'success') {
+            alertDiv.style.backgroundColor = '#27ae60';
+        } else {
+            alertDiv.style.backgroundColor = '#e74c3c';
+        }
+        
+        alertDiv.textContent = message;
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            document.body.removeChild(alertDiv);
+        }, 3000);
+    }
+    
+    // تحديث حالة المنتج
+    function updateProductStatus(productId, status) {
+        fetch('/update-product-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ productId, status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('تم تحديث حالة المنتج بنجاح', 'success');
+                // إعادة تحميل الصفحة لتحديث الإحصائيات
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showAlert('حدث خطأ في تحديث حالة المنتج', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('حدث خطأ في تحديث حالة المنتج', 'error');
+        });
+    }
+    
+    // حذف المنتج
+    function deleteProduct(productId) {
+        if (confirm('هل أنت متأكد من حذف هذا المنتج؟ لا يمكن التراجع عن هذا الإجراء.')) {
+            fetch('/delete-product', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ productId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('تم حذف المنتج بنجاح', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showAlert(data.message || 'حدث خطأ في حذف المنتج', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('حدث خطأ في حذف المنتج', 'error');
+            });
+        }
+    }
+    
+    // تعديل المنتج
+    function editProduct(productId) {
+        window.location.href = `/edit-product/${productId}`;
+    }
+    
+    // دوال المدير
+ function hideProduct(productId) {
+    // 1. اطلب من المدير إدخال السبب باستخدام نافذة منبثقة بسيطة
+    const reason = prompt("الرجاء إدخال سبب إخفاء المنتج (سيظهر للمستخدم):");
+
+    // 2. تحقق من أن المدير أدخل سبباً ولم يضغط على "إلغاء"
+    if (reason && reason.trim() !== '') {
+        // 3. إذا كان هناك سبب، أرسل الطلب إلى الخادم مع السبب
+        fetch(`/admin/hide-product/${productId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            // 4. قم بتضمين السبب في جسم الطلب (body)
+            body: JSON.stringify({ reason: reason })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('تم إخفاء المنتج بنجاح', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                // عرض الرسالة التي تأتي من الخادم
+                showAlert(data.message || 'حدث خطأ في إخفاء المنتج', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('حدث خطأ فني', 'error');
+        });
+    } else if (reason !== null) { 
+        // 5. إذا ضغط المدير "OK" بدون إدخال نص
+        alert('يجب إدخال سبب للإخفاء.');
+    }
+    // إذا ضغط المدير "Cancel" (reason is null)، لا تفعل شيئًا.
+}
+    
+    // --- دالة التواصل مع الإدارة ---
+async function contactAdmin(productName) {
+    try {
+        // 1. اطلب رقم واتساب المدير من الخادم
+        const response = await fetch('/get-admin-whatsapp');
+        const data = await response.json();
+
+        // 2. تحقق من أن الرقم موجود
+        if (data.success && data.number) {
+            // 3. قم بإنشاء رسالة تلقائية
+            const message = `مرحباً، أود الاستفسار بخصوص إخفاء منتجي "${productName}".`;
+            // 4. افتح واتساب في نافذة جديدة مع الرسالة المعدة مسبقاً
+            window.open(`https://wa.me/${data.number}?text=${encodeURIComponent(message)}`, '_blank');
+        } else {
+            // في حالة عدم العثور على الرقم في الخادم
+            alert('عذراً، خدمة التواصل مع الإدارة غير متاحة حالياً.');
+        }
+    } catch (error) {
+        console.error('Contact Admin Error:', error);
+        alert('حدث خطأ أثناء محاولة التواصل مع الإدارة.');
+    }
+}
+
+    function showProduct(productId) {
+        if (confirm('هل أنت متأكد من إظهار هذا المنتج؟')) {
+            fetch(`/admin/show-product/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('تم إظهار المنتج بنجاح', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showAlert(data.message || 'حدث خطأ في إظهار المنتج', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('حدث خطأ في إظهار المنتج', 'error');
+            });
+        }
+    }
+    
+    function deleteProductAdmin(productId) {
+        if (confirm('هل أنت متأكد من حذف هذا المنتج نهائياً؟ لا يمكن التراجع عن هذا الإجراء.')) {
+            fetch(`/admin/delete-product/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('تم حذف المنتج نهائياً', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showAlert(data.message || 'حدث خطأ في حذف المنتج', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('حدث خطأ في حذف المنتج', 'error');
+            });
+        }
+    }
+</script>
+        </div>
+    </main>

@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الجمعية</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root { --primary: #2c3e50; --secondary: #27ae60; --danger: #c0392b; --light: #f8f9fa; --border: #dee2e6; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+        h1 { margin: 0; color: var(--primary); font-size: 1.8rem; }
+        .btn { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: background-color .2s ease, box-shadow .2s ease, color .2s ease; font-weight: 600; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--secondary); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-outline { border: 1px solid var(--border); background: white; color: #666; }
+        .btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .btn-success:hover { background: #1f8f50; }
+        .btn-danger:hover { background: #a83224; }
+        .btn-outline:hover { background: #f3f4f6; color: #333; }
+        .btn i { margin-left: 8px; }
+        .header-actions { display: flex; gap: 12px; align-items: center; }
+        .export-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 16px; width: 100%; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; flex-wrap: nowrap; align-items: flex-end; }
+        .tab-btn { padding: 10px 20px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 1rem; color: #666; flex: 0 0 auto; white-space: nowrap; }
+        .tab-btn.active { color: var(--secondary); border-bottom-color: var(--secondary); font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-btn i { margin-left: 8px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: right; border-bottom: 1px solid var(--border); }
+        th { background: #f8f9fa; color: var(--primary); }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; width: 100%; max-width: 500px; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .close { cursor: pointer; font-size: 1.5rem; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: white; }
+        .badge.success { background: var(--secondary); }
+        .badge.danger { background: var(--danger); }
+
+        textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; resize: vertical; min-height: 80px; }
+        
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .checkbox-group input { width: auto; }
+
+        .btn-outline.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-width: 100%; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+        .table-container table { min-width: auto; }
+        @media (max-width: 600px) {
+            header { flex-direction: column; align-items: stretch; gap: 12px; }
+            .header-actions { width: 100%; flex-wrap: wrap; gap: 10px; }
+            .header-actions .btn { flex: 1 1 calc(33.333% - 10px); min-width: 0; }
+            .export-actions .btn { flex: 1 1 calc(50% - 10px); }
+            th, td { padding: 10px; }
+            .tab-btn { padding: 8px 12px; font-size: 0.95rem; }
+            .tab-btn i { font-size: 0.95em; }
+        }
+        @media (max-width: 380px) {
+            .header-actions .btn { flex: 1 1 100%; }
+            .export-actions .btn { flex: 1 1 100%; }
+        }
+        .table-fit { table-layout: fixed; width: 100%; }
+        .table-fit th, .table-fit td { white-space: normal; vertical-align: middle; }
+        
+        .transactions-table { min-width: 1200px; }
+        .transactions-table th:nth-child(1), .transactions-table td:nth-child(1) { width: 50px; text-align: center; padding: 5px; }
+        .transactions-table th:nth-child(2), .transactions-table td:nth-child(2) { width: 120px; white-space: nowrap; }
+        .transactions-table th:nth-child(3), .transactions-table td:nth-child(3) { width: 150px; overflow-wrap: break-word; }
+        .transactions-table th:nth-child(4), .transactions-table td:nth-child(4) { width: 160px; overflow-wrap: break-word; }
+        .transactions-table th:nth-child(5), .transactions-table td:nth-child(5) { width: 120px; white-space: nowrap; }
+        .transactions-table th:nth-child(6), .transactions-table td:nth-child(6) { width: 140px; white-space: nowrap; }
+        .transactions-table th:nth-child(7), .transactions-table td:nth-child(7) { width: 250px; overflow-wrap: break-word; }
+        .transactions-table th:nth-child(8), .transactions-table td:nth-child(8) { width: 180px; white-space: nowrap; }
+        
+        .members-table { min-width: 1400px; }
+        .members-table.compact { min-width: 1100px; }
+        .members-table .col-code { width: 80px; white-space: nowrap; }
+        .members-table .col-nick { width: 120px; overflow-wrap: break-word; }
+        .members-table .col-name { width: 180px; overflow-wrap: break-word; }
+        .members-table .col-phone { width: 120px; white-space: nowrap; }
+        .members-table .col-email { width: 220px; overflow-wrap: break-word; }
+        .members-table .col-pass { width: 100px; white-space: nowrap; }
+        .members-table .col-status { width: 90px; white-space: nowrap; }
+        .members-table .col-notes { width: auto; overflow-wrap: break-word; min-width: 200px; }
+        .members-table .col-actions { width: 350px; white-space: nowrap; }
+        .members-table th.sortable { cursor: pointer; }
+        .members-table th .sort-icon { margin-left: 6px; color: #999; }
+        .members-table th.active .sort-icon { color: var(--secondary); }
+        
+        .subjects-table { min-width: 700px; }
+        .subjects-table th:nth-child(1), .subjects-table td:nth-child(1) { width: 50px; text-align: center; padding: 5px; }
+        .subjects-table th:nth-child(2), .subjects-table td:nth-child(2) { width: 450px; overflow-wrap: break-word; }
+        .subjects-table th:nth-child(3), .subjects-table td:nth-child(3) { width: 200px; white-space: nowrap; text-align: center; }
+        
+        .unpaid-table { min-width: 800px; }
+        .unpaid-table th:nth-child(1), .unpaid-table td:nth-child(1) { width: 240px; overflow-wrap: break-word; }
+        .unpaid-table th:nth-child(2), .unpaid-table td:nth-child(2) { width: 130px; white-space: nowrap; }
+        .unpaid-table th:nth-child(3), .unpaid-table td:nth-child(3) { width: 180px; white-space: nowrap; }
+        .unpaid-table td.unpaid-name { width: 240px; overflow-wrap: break-word; }
+        .unpaid-table .primary-name { font-weight: bold; }
+        .unpaid-table .full-name { margin-top: 4px; }
+
+        /* Alternating row colors */
+        .transactions-table tbody tr:nth-child(even),
+        .members-table tbody tr:nth-child(even),
+        .unpaid-table tbody tr:nth-child(even),
+        .subjects-table tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        /* Hover effect */
+        .transactions-table tbody tr:hover,
+        .members-table tbody tr:hover,
+        .unpaid-table tbody tr:hover,
+        .subjects-table tbody tr:hover {
+            background-color: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>لوحة تحكم جمعية الخطوة الأهلية</h1>
+                <div style="color: #666; margin-top: 5px; font-weight: bold;">
+                    مرحباً، <%= typeof adminName !== 'undefined' ? adminName : 'مدير النظام' %>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button onclick="showAddTransactionModal()" class="btn btn-success"><i class="fa-solid fa-plus"></i>تسجيل عملية مالية</button>
+                <a href="/jam3ya" class="btn btn-outline"><i class="fa-solid fa-eye"></i>عرض الموقع</a>
+                <a href="/jam3ya/logout" class="btn btn-danger"><i class="fa-solid fa-right-from-bracket"></i>تسجيل خروج</a>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn" onclick="openTab('members')"><i class="fa-solid fa-users" style="margin-left:8px;"></i>الأعضاء</button>
+            <button class="tab-btn active" onclick="openTab('transactions')"><i class="fa-solid fa-list" style="margin-left:8px;"></i>سجل العمليات</button>
+            <button class="tab-btn" onclick="openTab('subjects')"><i class="fa-solid fa-tags" style="margin-left:8px;"></i>المواضيع</button>
+            <button class="tab-btn" onclick="openTab('unpaid')"><i class="fa-solid fa-clock" style="margin-left:8px;"></i>المتأخرين عن الدفع</button>
+        </div>
+
+        <!-- Members Tab -->
+        <div id="members" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>قائمة الأعضاء</h3>
+                <button class="btn btn-success" onclick="showAddMemberModal()">+ إضافة عضو</button>
+            </div>
+            <% 
+                const hasNotes = members && members.some(m => m.notes && m.notes !== '-' && m.notes.trim() !== '');
+            %>
+            <div class="table-container">
+            <table class="table-fit members-table <%= !hasNotes ? 'compact' : '' %>">
+                <thead>
+                    <tr>
+                        <th class="col-code sortable" onclick="sortMembers('code')">رقم العضو <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <th class="col-nick sortable" onclick="sortMembers('nick')">اللقب <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <th class="col-name sortable" onclick="sortMembers('name')">الاسم <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <th class="col-phone sortable" onclick="sortMembers('phone')">رقم الهاتف <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <th class="col-email sortable" onclick="sortMembers('email')">البريد الإلكتروني <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <th class="col-pass sortable" onclick="sortMembers('pass')">الرمز السري <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <th class="col-status sortable" onclick="sortMembers('status')">الحالة <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <% if (hasNotes) { %>
+                        <th class="col-notes sortable" onclick="sortMembers('notes')">ملاحظات <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <% } %>
+                        <th class="col-actions">إجراءات</th>
+                    </tr>
+                    <tr>
+                        <th class="col-code"><input id="filter_code" type="text" placeholder="تصفية" oninput="filterMembers()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;"></th>
+                        <th class="col-nick"><input id="filter_nick" type="text" placeholder="تصفية" oninput="filterMembers()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;"></th>
+                        <th class="col-name"><input id="filter_name" type="text" placeholder="تصفية" oninput="filterMembers()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;"></th>
+                        <th class="col-phone"><input id="filter_phone" type="text" placeholder="تصفية" oninput="filterMembers()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;"></th>
+                        <th class="col-email"><input id="filter_email" type="text" placeholder="تصفية" oninput="filterMembers()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;"></th>
+                        <th class="col-pass"><input id="filter_pass" type="text" placeholder="تصفية" oninput="filterMembers()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;"></th>
+                        <th class="col-status">
+                            <select id="filter_status" onchange="filterMembers()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;">
+                                <option value="">الكل</option>
+                                <option value="active">نشط</option>
+                                <option value="inactive">معطل</option>
+                            </select>
+                        </th>
+                        <% if (hasNotes) { %>
+                        <th class="col-notes"><input id="filter_notes" type="text" placeholder="تصفية" oninput="filterMembers()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;"></th>
+                        <% } %>
+                        <th class="col-actions"></th>
+                    </tr>
+                </thead>
+                <tbody id="membersTableBody">
+                    <% members.forEach(m => { %>
+                    <tr>
+                        <td class="col-code"><%= m.member_code %></td>
+                        <td class="col-nick"><%= m.nickname || '-' %></td>
+                        <td class="col-name">
+                            <a href="#" onclick="showMemberHistory('<%= m.member_code %>'); return false;" style="color: var(--primary); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--primary);">
+                                <%= m.name %>
+                            </a>
+                        </td>
+                        <td class="col-phone"><%= m.phone || '-' %></td>
+                        <td class="col-email"><%= m.email || '-' %></td>
+                        <td class="col-pass"><%= m.passcode || '-' %></td>
+                        <td class="col-status">
+                            <% if (m.is_active == 1 || m.is_active == null) { %>
+                                <span class="badge success">نشط</span>
+                            <% } else { %>
+                                <span class="badge danger">معطل</span>
+                            <% } %>
+                            <% if (m.is_admin == 1) { %>
+                                <span class="badge" style="background: #8e44ad;">مدير</span>
+                            <% } %>
+                        </td>
+                        <% if (hasNotes) { %>
+                        <td class="col-notes"><%= m.notes || '-' %></td>
+                        <% } %>
+                        <td class="col-actions">
+                            <button class="btn btn-primary" onclick="editMember('<%= m.id %>', '<%= m.member_code %>', '<%= m.name %>', `<%= m.nickname || '' %>`, '<%= m.phone %>', '<%= m.email || '' %>', '<%= m.passcode %>', <%= m.is_active %>, <%= m.is_admin %>, `<%= m.notes || '' %>`)">تعديل</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('member','<%= m.id %>','هل أنت متأكد من حذف هذا العضو؟')">حذف</button>
+                            <button class="btn btn-success" onclick="registerContributionForMember('<%= m.id %>')">تسجيل مساهمة</button>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <!-- Transactions Tab -->
+        <div id="transactions" class="tab-content active">
+            
+            <!-- Global Summary Table -->
+            <div class="table-container" style="margin-bottom: 20px;">
+                <h3 style="padding: 0 15px; margin-bottom: 10px; color: var(--primary);">الملخص العام للجمعية</h3>
+                <table style="min-width: auto; width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; background: #eaf2f8; color: #2c3e50;">الرصيد الابتدائي</th>
+                            <th style="text-align: center; background: #e8f5e9; color: #27ae60;">مجموع الإيداعات</th>
+                            <th style="text-align: center; background: #fdeaea; color: #c0392b;">مجموع المصروفات</th>
+                            <th style="text-align: center; background: #eaf2f8; color: #2c3e50;">الرصيد الحالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #2c3e50;">
+                                <%= mainData.initialBalance.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
+                            </td>
+                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #27ae60;">
+                                <%= mainData.totalIncome.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
+                            </td>
+                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #c0392b;">
+                                <%= mainData.totalExpense.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
+                            </td>
+                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #2c3e50;">
+                                <%= mainData.currentBalance.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3><i class="fa-solid fa-list" style="margin-left:8px;"></i>سجل العمليات التفصيلي</h3>
+                <button class="btn btn-success" onclick="showAddTransactionModal()"><i class="fa-solid fa-plus" style="margin-left:6px;"></i>تسجيل عملية مالية</button>
+            </div>
+            <div class="export-actions">
+                <button class="btn btn-success" onclick="exportWithChoice('excel')"><i class="fa-solid fa-file-excel"></i>تصدير اكسل</button>
+                <button class="btn btn-outline" onclick="exportWithChoice('pdf')"><i class="fa-solid fa-file-pdf"></i>تصدير PDF</button>
+            </div>
+            <div class="table-container">
+            <table class="transactions-table table-fit">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>التاريخ</th>
+                        <th>الموضوع</th>
+                        <th>البند / العضو</th>
+                        <th>المبلغ (ر.ع)</th>
+                        <th>الرصيد التراكمي</th>
+                        <th>التفاصيل</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% transactions.forEach(t => { %>
+                    <tr>
+                        <td style="font-weight: bold; color: #666;"><%= t.id %></td>
+                        <td><%= t.date ? new Date(t.date).toLocaleDateString('en-GB') : '-' %></td>
+                        <td><%= t.subject %></td>
+                        <td>
+                            <% if (t.isMember) { %>
+                                <a href="#" onclick="showMemberHistory('<%= t.item %>'); return false;" style="color: var(--primary); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--primary);">
+                                    <%= t.displayItem %> <span style="font-size: 0.8em; color: #666;">(<%= t.item %>)</span>
+                                </a>
+                            <% } else { %>
+                                <%= t.displayItem %>
+                            <% } %>
+                        </td>
+                        <td dir="ltr" style="text-align: right; font-weight: bold; color: <%= t.amount >= 0 ? '#27ae60' : '#c0392b' %>;">
+                            <%= t.amount %>
+                            <% if (t.is_approved === 0) { %>
+                                <span class="badge" style="background:#fff3cd;color:#856404;margin-right:8px;">قيد الموافقة</span>
+                            <% } %>
+                        </td>
+                        <td dir="ltr" style="text-align: right; font-weight: bold; color: #2c3e50;">
+                            <%= t.balance %>
+                        </td>
+                        <td><%= t.details || '-' %></td>
+                        <td>
+                            <button class="btn btn-primary" onclick='editTransaction(<%- JSON.stringify(t) %>)' style="padding: 4px 8px; font-size: 0.8rem;">تعديل</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('transaction','<%= t.id %>','هل أنت متأكد من حذف هذه العملية المالية؟ لا يمكن التراجع عن هذا الإجراء.')" style="padding: 4px 8px; font-size: 0.8rem;">حذف</button>
+                            <% if (t.is_approved === 0) { %>
+                                <form action="/jam3ya/transactions/approve" method="POST" style="display:inline;">
+                                    <input type="hidden" name="id" value="<%= t.id %>">
+                                    <button class="btn btn-success" style="padding: 4px 8px; font-size: 0.8rem;">تأكيد</button>
+                                </form>
+                            <% } %>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <!-- Subjects Tab -->
+        <div id="subjects" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>قائمة المواضيع</h3>
+                <button class="btn btn-success" onclick="showAddSubjectModal()">+ إضافة موضوع</button>
+            </div>
+            <div class="table-container">
+            <table class="table-fit subjects-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الموضوع</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% subjects.forEach(s => { %>
+                    <tr>
+                        <td style="font-weight: bold; color: #666;"><%= s.id %></td>
+                        <td><%= s.name %></td>
+                        <td>
+                            <button class="btn btn-warning" onclick="editSubject('<%= s.id %>', '<%= s.name %>')">تعديل</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('subject','<%= s.id %>','هل أنت متأكد من حذف هذا الموضوع؟ سيظل اسم الموضوع موجوداً في العمليات القديمة ولكن لن يظهر في القائمة.')">حذف</button>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <!-- Unpaid Members Tab -->
+        <div id="unpaid" class="tab-content">
+            <h3>إدارة التذكيرات والمساهمات المتأخرة</h3>
+            
+            <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
+                <h4>نموذج رسالة الواتساب</h4>
+                <div class="form-group">
+                    <label>نص الرسالة (استخدم {{اللقب}} لإدراج لقب العضو أو اسمه الأول تلقائياً)</label>
+                    <textarea id="whatsappTemplate" style="min-height: 150px; direction: rtl;">{{اللقب}} تحية طيبة ومساء سعيد 
+نود تذكيركم بدفع رسوم المساهمة السنوية لجمعية الخطوة الأهلية والبالغة 12 ريال عماني 
+التحويل عن طريق 
+رقم الحساب: 0361000959180037 - بنك مسقط 
+او رقم الهاتف: 99464523 
+ 
+ارجو التواصل ان كنت قد دفعت المساهمة لهذا العام معتذرين منك عن هذا الخطأ الغير مقصود.</textarea>
+                </div>
+                <button class="btn btn-primary" onclick="saveTemplate()">حفظ النموذج</button>
+            </div>
+
+            <h3>قائمة الأعضاء المتأخرين عن الدفع (مساهمة السنة الحالية)</h3>
+            <div class="table-container">
+            <table class="table-fit unpaid-table">
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>رقم الهاتف</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (typeof unpaidMembers !== 'undefined' && unpaidMembers.length > 0) { %>
+                        <% unpaidMembers.forEach(m => { %>
+                        <tr>
+                            <td class="unpaid-name"><div class="primary-name"><%= m.name %></div></td>
+                            <td><%= m.phone %></td>
+                            <td>
+                                <button class="btn btn-success" onclick="sendWhatsapp('<%= m.phone %>', `<%= m.nickname || '' %>`, `<%= m.name %>`)">
+                                    إرسال واتساب
+                                </button>
+                            </td>
+                        </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="3" style="text-align: center;">لا يوجد أعضاء متأخرين عن الدفع</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Mode Modal -->
+    <div id="exportModeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>اختيار طريقة التصدير</h3>
+                <span class="close" onclick="closeModal('exportModeModal')">&times;</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-success" onclick="chooseExportMode('names')"><i class="fa-solid fa-user"></i> بالأسماء الحقيقية</button>
+                <button class="btn btn-outline" onclick="chooseExportMode('codes')"><i class="fa-solid fa-hashtag"></i> بالأرقام فقط</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Member Modal -->
+    <div id="memberModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">إضافة عضو جديد</h3>
+                <span class="close" onclick="closeModal('memberModal')">&times;</span>
+            </div>
+            <form action="/jam3ya/members/save" method="POST">
+                <input type="hidden" name="id" id="memberId">
+                <input type="hidden" name="member_code" id="memberCode">
+                <div class="form-group" id="memberCodeDisplayGroup" style="display: none;">
+                    <label>رقم العضو</label>
+                    <div id="memberCodeDisplay" style="padding: 8px; background: #eee; border-radius: 4px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>الاسم</label>
+                    <input type="text" name="name" id="memberName" required>
+                </div>
+                <div class="form-group">
+                    <label>اللقب (اختياري - يظهر في رسائل الواتساب، مثال: أبو فهد)</label>
+                    <input type="text" name="nickname" id="memberNickname">
+                </div>
+                <div class="form-group">
+                    <label>رقم الهاتف</label>
+                    <input type="text" name="phone" id="memberPhone">
+                </div>
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" name="email" id="memberEmail">
+                </div>
+                <div class="form-group">
+                    <label>الرمز السري (اختياري - اتركه فارغاً للتوليد التلقائي)</label>
+                    <input type="text" name="passcode" id="memberPasscode">
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" name="is_active" id="memberIsActive" checked>
+                    <label for="memberIsActive" style="margin:0">حساب نشط</label>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" name="is_admin" id="memberIsAdmin">
+                    <label for="memberIsAdmin" style="margin:0; color: #8e44ad;">مدير نظام (له صلاحية دخول لوحة التحكم)</label>
+                </div>
+                
+                <div class="form-group">
+                    <label>ملاحظات</label>
+                    <textarea name="notes" id="memberNotes"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success" style="width: 100%">حفظ</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Member History Modal -->
+    <div id="memberHistoryModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="historyModalTitle">سجل مدفوعات العضو</h3>
+                <span class="close" onclick="closeModal('memberHistoryModal')">&times;</span>
+            </div>
+            
+            <div style="margin-bottom: 20px; display: flex; gap: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <div>
+                    <strong>إجمالي المساهمات:</strong>
+                    <span id="historyTotalIncome" style="color: #27ae60; font-weight: bold; font-size: 1.2rem;">0</span>
+                </div>
+                <div>
+                    <strong>الرصيد الصافي:</strong>
+                    <span id="historyNetBalance" style="color: #2c3e50; font-weight: bold; font-size: 1.2rem;">0</span>
+                </div>
+            </div>
+
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>الموضوع</th>
+                            <th>المبلغ</th>
+                            <th>التفاصيل</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <!-- Transactions will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Subject Modal -->
+    <div id="subjectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>إضافة موضوع جديد</h3>
+                <span class="close" onclick="closeModal('subjectModal')">&times;</span>
+            </div>
+            <form action="/jam3ya/subjects/add" method="POST">
+                <div class="form-group">
+                    <label>اسم الموضوع</label>
+                    <input type="text" name="name" required>
+                </div>
+                <button type="submit" class="btn btn-success" style="width: 100%">إضافة</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Subject Modal -->
+    <div id="editSubjectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تعديل موضوع</h3>
+                <span class="close" onclick="closeModal('editSubjectModal')">&times;</span>
+            </div>
+            <form action="/jam3ya/subjects/edit" method="POST">
+                <input type="hidden" name="id" id="editSubjectId">
+                <input type="hidden" name="old_name" id="editSubjectOldName">
+                <div class="form-group">
+                    <label>اسم الموضوع</label>
+                    <input type="text" name="name" id="editSubjectName" required>
+                </div>
+                <div style="background-color: #fff3cd; color: #856404; padding: 10px; margin-bottom: 15px; border: 1px solid #ffeeba; border-radius: 4px;">
+                    <small>تنبيه: تعديل اسم الموضوع سيقوم بتحديث جميع العمليات القديمة المرتبطة به أيضاً.</small>
+                </div>
+                <button type="submit" class="btn btn-warning" style="width: 100%">حفظ التعديلات</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="confirmDeleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تأكيد الحذف</h3>
+                <span class="close" onclick="closeModal('confirmDeleteModal')">&times;</span>
+            </div>
+            <p id="confirmText" style="margin-bottom: 20px;">هل أنت متأكد؟</p>
+            <input type="hidden" id="deleteType">
+            <input type="hidden" id="deleteId">
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="closeModal('confirmDeleteModal')">إلغاء</button>
+                <button class="btn btn-danger" onclick="confirmDeleteExecute()">حذف نهائي</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showDeleteConfirm(type, id, message) {
+            document.getElementById('deleteType').value = type;
+            document.getElementById('deleteId').value = id;
+            document.getElementById('confirmText').innerText = message || 'هل أنت متأكد؟';
+            document.getElementById('confirmDeleteModal').style.display = 'flex';
+        }
+
+        function confirmDeleteExecute() {
+            const type = document.getElementById('deleteType').value;
+            const id = document.getElementById('deleteId').value;
+            let action = '';
+            if (type === 'transaction') action = '/jam3ya/transactions/delete';
+            else if (type === 'member') action = '/jam3ya/members/delete';
+            else if (type === 'subject') action = '/jam3ya/subjects/delete';
+            if (!action || !id) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = action;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'id';
+            input.value = id;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            document.getElementById('confirmDeleteModal').style.display = 'none';
+            form.submit();
+        }
+        // Store members for lookup
+        const membersList = <%- JSON.stringify(members) %>;
+        // Store all transactions for client-side filtering
+        const allTransactions = <%- JSON.stringify(transactions) %>;
+
+        function showMemberHistory(code) {
+            const member = membersList.find(m => m.member_code == code);
+            const name = member ? member.name : 'غير معروف';
+
+            const modal = document.getElementById('memberHistoryModal');
+            document.getElementById('historyModalTitle').innerText = 'سجل مدفوعات: ' + name;
+            
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+
+            let totalIncome = 0;
+            let netBalance = 0;
+
+            // Filter transactions for this member
+            // Note: allTransactions is already sorted descending (processed in server)
+            const memberTransactions = allTransactions.filter(t => t.item == code);
+
+            if (memberTransactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">لا توجد عمليات مسجلة لهذا العضو</td></tr>';
+            } else {
+                memberTransactions.forEach(t => {
+                    // Calculate totals
+                    if (t.amount > 0) {
+                        totalIncome += t.amount;
+                    }
+                    netBalance += t.amount;
+
+                    const tr = document.createElement('tr');
+                    
+                    const dateCell = document.createElement('td');
+                    dateCell.innerText = t.date ? new Date(t.date).toLocaleDateString('en-GB') : '-';
+                    tr.appendChild(dateCell);
+
+                    const subjectCell = document.createElement('td');
+                    subjectCell.innerText = t.subject;
+                    tr.appendChild(subjectCell);
+
+                    const amountCell = document.createElement('td');
+                    amountCell.innerText = t.amount;
+                    amountCell.dir = 'ltr';
+                    amountCell.style.textAlign = 'right';
+                    amountCell.style.fontWeight = 'bold';
+                    amountCell.style.color = t.amount >= 0 ? '#27ae60' : '#c0392b';
+                    tr.appendChild(amountCell);
+
+                    const detailsCell = document.createElement('td');
+                    detailsCell.innerText = t.details || '-';
+                    tr.appendChild(detailsCell);
+
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('historyTotalIncome').innerText = totalIncome.toLocaleString('en-US') + ' ر.ع';
+            document.getElementById('historyNetBalance').innerText = netBalance.toLocaleString('en-US') + ' ر.ع';
+
+            modal.style.display = 'flex';
+        }
+
+        function selectSubject(val) {
+            const select = document.getElementById('transaction_subject');
+            select.value = val;
+            toggleTransactionFields();
+            
+            // Visual feedback
+            document.querySelectorAll('#quick-subjects .btn-outline').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.innerText === val) btn.classList.add('active');
+            });
+        }
+
+        function showSubjectDropdown() {
+            document.getElementById('transaction_subject').style.display = 'block';
+        }
+
+        function openTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function showAddMemberModal() {
+            document.getElementById('modalTitle').innerText = 'إضافة عضو جديد';
+            document.getElementById('memberId').value = '';
+            document.getElementById('memberCode').value = '';
+            document.getElementById('memberCodeDisplayGroup').style.display = 'none';
+            document.getElementById('memberName').value = '';
+            document.getElementById('memberNickname').value = '';
+            document.getElementById('memberPhone').value = '';
+            document.getElementById('memberEmail').value = '';
+            document.getElementById('memberPasscode').value = '';
+            document.getElementById('memberIsActive').checked = true;
+            document.getElementById('memberIsAdmin').checked = false;
+            document.getElementById('memberNotes').value = '';
+            document.getElementById('memberModal').style.display = 'flex';
+        }
+
+        function registerContributionForMember(memberId) {
+            showAddTransactionModal();
+            const incomeRadio = document.getElementById('type_income');
+            const expenseRadio = document.getElementById('type_expense');
+            if (incomeRadio) incomeRadio.checked = true;
+            if (expenseRadio) expenseRadio.checked = false;
+            
+            const subjectSelect = document.getElementById('transaction_subject');
+            if (subjectSelect) {
+                // Ensure the subject exists in dropdown
+                let hasMemberSubject = false;
+                for (let i = 0; i < subjectSelect.options.length; i++) {
+                    if (subjectSelect.options[i].value === 'مساهمات الاعضاء') { hasMemberSubject = true; break; }
+                }
+                if (!hasMemberSubject) {
+                    const opt = document.createElement('option');
+                    opt.value = 'مساهمات الاعضاء';
+                    opt.text = 'مساهمات الاعضاء';
+                    subjectSelect.appendChild(opt);
+                }
+                subjectSelect.value = 'مساهمات الاعضاء';
+            }
+            
+            // Trigger field visibility for member contributions
+            toggleTransactionFields();
+            
+            const memberInput = document.getElementById('transaction_member');
+            if (memberInput) memberInput.value = String(memberId);
+            
+            const amountInput = document.querySelector('#addTransactionModal input[name="amount"]');
+            const detailsInput = document.querySelector('#addTransactionModal textarea[name="details"]');
+            if (amountInput) amountInput.value = 12;
+            if (detailsInput) detailsInput.value = new Date().getFullYear();
+        }
+
+        function editMember(id, code, name, nickname, phone, email, passcode, isActive, isAdmin, notes) {
+            document.getElementById('modalTitle').innerText = 'تعديل بيانات عضو';
+            document.getElementById('memberId').value = id;
+            document.getElementById('memberCode').value = code;
+            document.getElementById('memberCodeDisplay').innerText = code;
+            document.getElementById('memberCodeDisplayGroup').style.display = 'block';
+            document.getElementById('memberName').value = name;
+            document.getElementById('memberNickname').value = nickname;
+            document.getElementById('memberPhone').value = phone;
+            document.getElementById('memberEmail').value = email;
+            document.getElementById('memberPasscode').value = passcode;
+            document.getElementById('memberIsActive').checked = (isActive == 1 || isActive == null);
+            document.getElementById('memberIsAdmin').checked = (isAdmin == 1);
+            document.getElementById('memberNotes').value = notes;
+            document.getElementById('memberModal').style.display = 'flex';
+        }
+
+        function saveTemplate() {
+            const template = document.getElementById('whatsappTemplate').value;
+            localStorage.setItem('jam3ya_whatsapp_template', template);
+            alert('تم حفظ نموذج الرسالة بنجاح');
+        }
+
+        function sendWhatsapp(phone, nickname, name) {
+            let template = document.getElementById('whatsappTemplate').value;
+            
+            // If template is empty in textarea, try loading from local storage
+            if (!template.trim()) {
+                 template = localStorage.getItem('jam3ya_whatsapp_template') || document.getElementById('whatsappTemplate').value;
+            }
+
+            const honorific = nickname ? nickname : name.split(' ')[0];
+            const message = template.replace('{{اللقب}}', honorific);
+            
+            // Format phone number: add 968 if not present
+            let formattedPhone = phone.replace(/\D/g, ''); // Remove non-digits
+            if (!formattedPhone.startsWith('968') && formattedPhone.length === 8) {
+                formattedPhone = '968' + formattedPhone;
+            }
+
+            const encodedMessage = encodeURIComponent(message);
+            const url = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+            
+            window.open(url, '_blank');
+        }
+
+        function filterMembers() {
+            const tbody = document.getElementById('membersTableBody');
+            const codeVal = (document.getElementById('filter_code').value || '').trim().toLowerCase();
+            const nickVal = (document.getElementById('filter_nick').value || '').trim().toLowerCase();
+            const nameVal = (document.getElementById('filter_name').value || '').trim().toLowerCase();
+            const phoneVal = (document.getElementById('filter_phone').value || '').trim().toLowerCase();
+            const emailVal = (document.getElementById('filter_email').value || '').trim().toLowerCase();
+            const passVal = (document.getElementById('filter_pass').value || '').trim().toLowerCase();
+            const statusVal = document.getElementById('filter_status').value || '';
+            const notesInput = document.getElementById('filter_notes');
+            const notesVal = notesInput ? (notesInput.value || '').trim().toLowerCase() : '';
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const codeText = (cells[0] && cells[0].textContent || '').toLowerCase();
+                const nickText = (cells[1] && cells[1].textContent || '').toLowerCase();
+                const nameText = (cells[2] && cells[2].textContent || '').toLowerCase();
+                const phoneText = (cells[3] && cells[3].textContent || '').toLowerCase();
+                const emailText = (cells[4] && cells[4].textContent || '').toLowerCase();
+                const passText = (cells[5] && cells[5].textContent || '').toLowerCase();
+                const statusText = (cells[6] && cells[6].textContent || '');
+                const notesText = notesInput ? ((cells[7] && cells[7].textContent || '').toLowerCase()) : '';
+                const match =
+                    (codeVal === '' || codeText.includes(codeVal)) &&
+                    (nickVal === '' || nickText.includes(nickVal)) &&
+                    (nameVal === '' || nameText.includes(nameVal)) &&
+                    (phoneVal === '' || phoneText.includes(phoneVal)) &&
+                    (emailVal === '' || emailText.includes(emailVal)) &&
+                    (passVal === '' || passText.includes(passVal)) &&
+                    (statusVal === '' || (statusVal === 'active' && statusText.includes('نشط')) || (statusVal === 'inactive' && statusText.includes('معطل'))) &&
+                    (!notesInput || notesVal === '' || notesText.includes(notesVal));
+                row.style.display = match ? '' : 'none';
+            });
+        }
+        const membersSortState = {};
+        function sortMembers(field) {
+            const ths = Array.from(document.querySelectorAll('.members-table th.sortable'));
+            const clickedTh = ths.find(th => th.getAttribute('onclick') && th.getAttribute('onclick').includes("'" + field + "'")) || (event && event.target.closest('th'));
+            const tbody = document.getElementById('membersTableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const dir = membersSortState[field] === 'asc' ? 'desc' : 'asc';
+            membersSortState[field] = dir;
+            ths.forEach(th => {
+                th.classList.remove('active');
+                const ic = th.querySelector('.sort-icon');
+                if (ic) { ic.classList.remove('fa-sort-up', 'fa-sort-down'); ic.classList.add('fa-sort'); }
+            });
+            if (clickedTh) {
+                clickedTh.classList.add('active');
+                const icon = clickedTh.querySelector('.sort-icon');
+                if (icon) {
+                    icon.classList.remove('fa-sort');
+                    icon.classList.add(dir === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
+                }
+            }
+            function getVal(row, field) {
+                if (field === 'code') return row.querySelector('.col-code') ? row.querySelector('.col-code').textContent.trim() : '';
+                if (field === 'nick') return row.querySelector('.col-nick') ? row.querySelector('.col-nick').textContent.trim() : '';
+                if (field === 'name') return row.querySelector('.col-name') ? row.querySelector('.col-name').textContent.trim() : '';
+                if (field === 'phone') return row.querySelector('.col-phone') ? row.querySelector('.col-phone').textContent.trim() : '';
+                if (field === 'email') return row.querySelector('.col-email') ? row.querySelector('.col-email').textContent.trim() : '';
+                if (field === 'pass') return row.querySelector('.col-pass') ? row.querySelector('.col-pass').textContent.trim() : '';
+                if (field === 'status') return row.querySelector('.col-status') ? row.querySelector('.col-status').textContent.trim() : '';
+                if (field === 'notes') return row.querySelector('.col-notes') ? row.querySelector('.col-notes').textContent.trim() : '';
+                return '';
+            }
+            rows.sort((a, b) => {
+                let av = getVal(a, field);
+                let bv = getVal(b, field);
+                if (field === 'code') {
+                    const an = parseInt(av, 10);
+                    const bn = parseInt(bv, 10);
+                    if (!isNaN(an) && !isNaN(bn)) return dir === 'asc' ? an - bn : bn - an;
+                }
+                return dir === 'asc' ? av.localeCompare(bv, 'ar', { sensitivity: 'base' }) : bv.localeCompare(av, 'ar', { sensitivity: 'base' });
+            });
+            rows.forEach(r => tbody.appendChild(r));
+        }
+
+        // Initialize template on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTemplate = localStorage.getItem('jam3ya_whatsapp_template');
+            if (savedTemplate) {
+                document.getElementById('whatsappTemplate').value = savedTemplate;
+            }
+        });
+
+        function showAddSubjectModal() {
+            document.getElementById('subjectModal').style.display = 'flex';
+        }
+
+        function editSubject(id, name) {
+            document.getElementById('editSubjectId').value = id;
+            document.getElementById('editSubjectOldName').value = name;
+            document.getElementById('editSubjectName').value = name;
+            document.getElementById('editSubjectModal').style.display = 'flex';
+        }
+
+        function confirmDeleteSubject(id) {
+            if (confirm('هل أنت متأكد من حذف هذا الموضوع؟ سيظل اسم الموضوع موجوداً في العمليات القديمة ولكن لن يظهر في القائمة.')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/jam3ya/subjects/delete';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'id';
+                input.value = id;
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function confirmDelete(id) {
+            if (confirm('هل أنت متأكد من الحذف؟')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/jam3ya/members/delete';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'id';
+                input.value = id;
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function confirmDeleteTransaction(id) {
+            if (confirm('هل أنت متأكد من حذف هذه العملية المالية؟ لا يمكن التراجع عن هذا الإجراء.')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/jam3ya/transactions/delete';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'id';
+                input.value = id;
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = "none";
+            }
+        }
+        let currentExportType = null;
+        function exportWithChoice(type) {
+            currentExportType = type;
+            document.getElementById('exportModeModal').style.display = 'flex';
+        }
+        function chooseExportMode(mode) {
+            if (!currentExportType) return;
+            const url = currentExportType === 'excel' ? ('/jam3ya/export/excel?mode=' + mode) : ('/jam3ya/export/pdf?mode=' + mode);
+            document.getElementById('exportModeModal').style.display = 'none';
+            window.location.href = url;
+        }
+
+        function showAddTransactionModal() {
+            document.getElementById('addTransactionModal').style.display = 'flex';
+            toggleTransactionFields();
+        }
+
+        function toggleTransactionFields() {
+            const subjectSelect = document.getElementById('transaction_subject');
+            const subject = subjectSelect.options[subjectSelect.selectedIndex].value;
+            
+            const memberField = document.getElementById('member_field');
+            const descField = document.getElementById('description_field');
+            const memberInput = document.getElementById('transaction_member');
+            const descInput = document.getElementById('transaction_description');
+            
+            // Target specific inputs in the Add Modal
+            const amountInput = document.querySelector('#addTransactionModal input[name="amount"]');
+            const detailsInput = document.querySelector('#addTransactionModal textarea[name="details"]');
+
+            // Check if subject is "مساهمات الاعضاء" (Member Contributions)
+            if (subject === 'مساهمات الاعضاء') {
+                memberField.style.display = 'block';
+                descField.style.display = 'none';
+                memberInput.required = true;
+                descInput.required = false;
+                if (!memberInput.value) descInput.value = ''; // Clear description only if empty
+                
+                // Set default values
+                amountInput.value = 12;
+                detailsInput.value = new Date().getFullYear();
+            } else {
+                memberField.style.display = 'none';
+                descField.style.display = 'block';
+                memberInput.required = false;
+                descInput.required = true;
+                memberInput.value = ''; // Clear member if switching to description
+                
+                // Clear defaults if they match the auto-set ones
+                if (amountInput.value == 12) amountInput.value = '';
+                if (detailsInput.value == new Date().getFullYear()) detailsInput.value = '';
+            }
+        }
+
+        function toggleEditTransactionFields() {
+            const subjectSelect = document.getElementById('edit_transaction_subject');
+            const subject = subjectSelect.options[subjectSelect.selectedIndex].value;
+            
+            const memberField = document.getElementById('edit_member_field');
+            const descField = document.getElementById('edit_description_field');
+            const memberInput = document.getElementById('edit_transaction_member');
+            const descInput = document.getElementById('edit_transaction_description');
+
+            if (subject === 'مساهمات الاعضاء') {
+                memberField.style.display = 'block';
+                descField.style.display = 'none';
+                memberInput.required = true;
+                descInput.required = false;
+            } else {
+                memberField.style.display = 'none';
+                descField.style.display = 'block';
+                memberInput.required = false;
+                descInput.required = true;
+            }
+        }
+
+        function editTransaction(t) {
+            document.getElementById('editTransactionModal').style.display = 'flex';
+            
+            // Set ID
+            document.getElementById('edit_id').value = t.id;
+            
+            // Set Type
+            if (t.amount >= 0) {
+                document.getElementById('edit_type_income').checked = true;
+            } else {
+                document.getElementById('edit_type_expense').checked = true;
+            }
+            
+            // Set Date
+            if (t.date) {
+                document.getElementById('edit_date').value = t.date.split('T')[0];
+            }
+            
+            // Set Amount
+            document.getElementById('edit_amount').value = Math.abs(t.amount);
+            
+            // Set Details
+            document.getElementById('edit_details').value = t.details || '';
+            
+            // Set Subject
+            const subjectSelect = document.getElementById('edit_transaction_subject');
+            subjectSelect.value = t.subject;
+            
+            // Handle Item (Member vs Description)
+            // We use the isMember flag we computed in the server
+            const memberInput = document.getElementById('edit_transaction_member');
+            const descInput = document.getElementById('edit_transaction_description');
+            
+            // Trigger toggle to set visibility based on subject
+            toggleEditTransactionFields();
+            
+            if (t.isMember) {
+                // Find member ID from code (t.item is code)
+                const member = membersList.find(m => m.member_code === t.item);
+                if (member) {
+                    memberInput.value = member.id;
+                }
+            } else {
+                descInput.value = t.item;
+            }
+        }
+    </script>
+
+    <!-- Add Transaction Modal -->
+    <div id="addTransactionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تسجيل عملية مالية</h3>
+                <span class="close" onclick="closeModal('addTransactionModal')">&times;</span>
+            </div>
+            <form action="/jam3ya/transactions/add" method="POST">
+                <div class="form-group">
+                    <label>نوع العملية:</label>
+                    <div class="checkbox-group">
+                        <input type="radio" name="type" value="income" id="type_income" checked>
+                        <label for="type_income">وارد (مدخول / مساهمة)</label>
+                        <input type="radio" name="type" value="expense" id="type_expense">
+                        <label for="type_expense">صادر (مصروف / تسليم)</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>التاريخ:</label>
+                    <input type="date" name="date" required value="<%= new Date().toISOString().split('T')[0] %>">
+                </div>
+
+                <div class="form-group">
+                    <label>الموضوع / التصنيف:</label>
+                    
+                    <!-- Quick Select Buttons -->
+                    <div id="quick-subjects" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <% if (typeof activeSubjects !== 'undefined' && activeSubjects.length > 0) { %>
+                            <% activeSubjects.forEach(sub => { %>
+                                <button type="button" class="btn btn-outline" onclick="selectSubject('<%= sub %>')"><%= sub %></button>
+                            <% }) %>
+                        <% } %>
+                        <button type="button" class="btn btn-primary" onclick="showSubjectDropdown()">عرض الكل...</button>
+                    </div>
+
+                    <select name="subject" id="transaction_subject" required onchange="toggleTransactionFields()" style="<%= (typeof activeSubjects !== 'undefined' && activeSubjects.length > 0) ? 'display: none;' : '' %>">
+                        <option value="">-- اختر الموضوع --</option>
+                        <% subjects.forEach(s => { %>
+                            <option value="<%= s.name %>"><%= s.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <div class="form-group" id="member_field">
+                    <label>العضو:</label>
+                    <select name="member_id" id="transaction_member">
+                        <option value="">-- اختر العضو --</option>
+                        <% members.forEach(m => { %>
+                            <option value="<%= m.id %>"><%= m.name %> (<%= m.member_code %>)</option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <div class="form-group" id="description_field" style="display: none;">
+                    <label>الموضوع الفرعي (البند):</label>
+                    <input type="text" name="description" id="transaction_description" placeholder="مثال: فاتورة كهرباء شهر 5">
+                </div>
+
+                <div class="form-group">
+                    <label>المبلغ (ر.ع):</label>
+                    <input type="number" step="0.001" name="amount" required placeholder="0.000">
+                </div>
+
+                <div class="form-group">
+                    <label>التفاصيل (ملاحظات):</label>
+                    <textarea name="details" placeholder="ملاحظات إضافية (اختياري)"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success" style="width: 100%">حفظ العملية</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Transaction Modal -->
+    <div id="editTransactionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تعديل عملية مالية</h3>
+                <span class="close" onclick="closeModal('editTransactionModal')">&times;</span>
+            </div>
+            <form action="/jam3ya/transactions/edit" method="POST">
+                <input type="hidden" name="id" id="edit_id">
+                
+                <div class="form-group">
+                    <label>نوع العملية:</label>
+                    <div class="checkbox-group">
+                        <input type="radio" name="type" value="income" id="edit_type_income">
+                        <label for="edit_type_income">وارد (مدخول / مساهمة)</label>
+                        <input type="radio" name="type" value="expense" id="edit_type_expense">
+                        <label for="edit_type_expense">صادر (مصروف / تسليم)</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>التاريخ:</label>
+                    <input type="date" name="date" id="edit_date" required>
+                </div>
+
+                <div class="form-group">
+                    <label>الموضوع / التصنيف:</label>
+                    <select name="subject" id="edit_transaction_subject" required onchange="toggleEditTransactionFields()">
+                        <% subjects.forEach(s => { %>
+                            <option value="<%= s.name %>"><%= s.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <div class="form-group" id="edit_member_field">
+                    <label>العضو:</label>
+                    <select name="member_id" id="edit_transaction_member">
+                        <option value="">-- اختر العضو --</option>
+                        <% members.forEach(m => { %>
+                            <option value="<%= m.id %>"><%= m.name %> (<%= m.member_code %>)</option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <div class="form-group" id="edit_description_field" style="display: none;">
+                    <label>الموضوع الفرعي (البند):</label>
+                    <input type="text" name="description" id="edit_transaction_description" placeholder="مثال: فاتورة كهرباء شهر 5">
+                </div>
+
+                <div class="form-group">
+                    <label>المبلغ (ر.ع):</label>
+                    <input type="number" step="0.001" name="amount" id="edit_amount" required placeholder="0.000">
+                </div>
+
+                <div class="form-group">
+                    <label>التفاصيل (ملاحظات):</label>
+                    <textarea name="details" id="edit_details" placeholder="ملاحظات إضافية (اختياري)"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%">حفظ التعديلات</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<main class="main-content">
+    <!-- قسم رأس الصفحة الخاص بالدكان -->
+    <div class="dukan-header">
+        <div class="dukan-header-avatar">
+            <% if (owner.avatar) { %>
+                <img src="/uploads/<%= owner.avatar %>" alt="<%= owner.name %>">
+            <% } else { %>
+                <span><%= owner.name.charAt(0).toUpperCase() %></span>
+            <% } %>
+        </div>
+        <div class="dukan-header-info">
+            <h1>دكان <%= owner.name %></h1>
+            <% if (owner.bio) { %>
+                <p><%= owner.bio %></p>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- قسم عرض منتجات الدكان -->
+    <h3 style="text-align: center; margin-bottom: 2rem; margin-top: 2rem;">جميع منتجات <%= owner.name %></h3>
+    <div class="products-grid">
+        <% if (products && products.length > 0) { %>
+            <% products.forEach(product => { %>
+                
+                <!-- ======== بداية لصق الكود المُعدَّل ======== -->
+                <div class="product-card">
+                    <% if (product.product_condition) { %>
+                        <div class="product-condition-badge <%= product.product_condition === 'new' ? 'badge-new' : 'badge-used' %>">
+                            <%= product.product_condition === 'new' ? 'جديد' : 'مستعمل' %>
+                        </div>
+                    <% } %>
+                    
+                    <div class="product-image-container">
+                        <% if (product.image_path) { %>
+<img src="/uploads/<%= product.image_path %>" alt="<%= product.name %>" class="product-image product-image-zoomable">
+                        <% } else { %>
+                            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">لا توجد صورة</div>
+                        <% } %>
+                    </div>
+                    
+                    <div class="product-info">
+                        <h3 class="product-title"><%= product.name %></h3>
+                        <p class="product-price"><%= product.price %> ريال</p>
+                            <% if (product.description) { %>
+                            <p class="product-description" style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.6;">
+                                <%= product.description.substring(0, 100) %>
+                                <%= product.description.length > 100 ? '...' : '' %>
+                            </p>
+                        <% } %>
+                        <div class="product-meta">
+                            <span>التصنيف: <%= product.category_name || 'غير محدد' %></span>
+                            <span><%= new Date(product.created_at).toLocaleDateString('en-GB') %></span>
+                        </div>
+                        
+                        <!-- زر التواصل عبر واتساب -->
+                     <!-- استبدل قسم product-actions القديم بهذا -->
+<div class="product-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    <!-- زر البحث في الإنترنت الجدي
+    <% if (product.youtube_link) { %>
+    <button onclick="openVideoModal('<%= product.youtube_link %>')" class="btn btn-secondary" style="flex: 1; background-color: #FF0000; border-color: #FF0000; color: white;" title="شاهد فيديو للمنتج">
+        ▶️ شاهد الفيديو
+    </button>
+<% } %>د -->
+    <a href="https://lens.google.com/uploadbyurl?url=<%= req.protocol %>://<%= req.get('host') %>/uploads/<%= product.image_path %>&st=16&ep=cnts" 
+       target="_blank" class="btn btn-secondary" style="flex: 1;" title="ابحث عن هذا المنتج في الإنترنت باستخدام صورته">
+       🌐 ابحث
+    </a>
+
+ <!-- ======== بداية التحقق من تسجيل الدخول لواتساب ======== -->
+<% if (typeof user !== 'undefined' && user) { %>
+    <!-- إذا كان المستخدم مسجلاً، اعرض زر واتساب -->
+    <a href="https://wa.me/968<%= owner.phone %>?text=مرحباً، أنا مهتم بمنتجك: <%= encodeURIComponent(product.title) %>"
+       target="_blank" class="btn btn-primary" style="flex: 1; background-color: #25D366; border-color: #25D366;">
+        💬 واتساب
+    </a>
+<% } else { %>
+    <!-- إذا كان المستخدم زائرًا، اعرض زر تسجيل الدخول -->
+    <a href="/login" class="btn btn-primary" style="flex: 1; background-color: #25D366; border-color: #25D366;">
+        🔒 سجل للتواصل
+    </a>
+<% } %>
+<!-- ======== نهاية التحقق من تسجيل الدخول لواتساب ======== -->
+</div>
+                    </div>
+                </div>
+                <!-- ======== نهاية لصق الكود المُعدَّل ======== -->
+
+            <% }); %>
+        <% } else { %>
+            <p style="grid-column: 1 / -1; text-align: center; padding: 2rem;">هذا الدكان لا يحتوي على منتجات متاحة حالياً.</p>
+        <% } %>
+    </div>
+</main>
+
+<script>
+    // --- دالة فتح نافذة تفاصيل المنتج ---
+
+</script>

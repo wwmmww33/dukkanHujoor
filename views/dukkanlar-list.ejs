@@ -1,0 +1,28 @@
+<main class="main-content">
+    <div class="page-header" style="text-align: center; margin-bottom: 2rem;">
+        <h2>🛍️ تصفح الدكاكين</h2>
+        <p>اكتشف البائعين ومنتجاتهم المميزة في دكان الحجور.</p>
+    </div>
+
+    <div class="dukkan-grid">
+        <% if (dukkanlar && dukkanlar.length > 0) { %>
+            <% dukkanlar.forEach(dukan => { %>
+                <a href="/dukan/<%= dukan.id %>" class="dukan-card">
+                    <div class="dukan-avatar">
+                        <% if (dukan.avatar) { %>
+                            <img src="/uploads/<%= dukan.avatar %>" alt="<%= dukan.name %>">
+                        <% } else { %>
+                            <span><%= dukan.name.charAt(0).toUpperCase() %></span>
+                        <% } %>
+                    </div>
+                    <div class="dukan-info">
+                        <h3 class="dukan-name"><%= dukan.name %></h3>
+                        <p class="dukan-product-count"><%= dukan.product_count %> منتجات متاحة</p>
+                    </div>
+                </a>
+            <% }); %>
+        <% } else { %>
+            <p style="grid-column: 1 / -1; text-align: center;">لا توجد دكاكين لعرضها حالياً.</p>
+        <% } %>
+    </div>
+</main>

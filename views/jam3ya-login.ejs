@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جمعية الخطوة الأهلية - <%= isAdmin ? 'تسجيل دخول الإدارة' : 'تسجيل دخول الأعضاء' %></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h2 { color: #2c3e50; margin-bottom: 30px; }
+        input { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background 0.3s; }
+        button:hover { background: #219150; }
+        .error { color: #c0392b; margin-bottom: 15px; font-size: 14px; }
+        .back-link { display: block; margin-top: 20px; color: #666; text-decoration: none; font-size: 14px; }
+        .brand { font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="brand"><i class="fa-solid fa-users" style="margin-left:8px;"></i>جمعية الخطوة الأهلية</div>
+        <h2><%= isAdmin ? 'إدارة الجمعية' : 'تسجيل دخول الأعضاء' %></h2>
+        <% if (error) { %>
+            <div class="error"><%= error %></div>
+        <% } %>
+        <% if (typeof success !== 'undefined' && success) { %>
+            <div class="error" style="color: #27ae60; background: #e8f5e9; padding: 10px; border-radius: 6px;"><%= success %></div>
+        <% } %>
+
+        <form action="<%= isAdmin ? '/jam3ya/admin' : '/jam3ya/login' %>" method="POST">
+            <% if (isAdmin) { %>
+                <input type="text" name="identifier" placeholder="رقم الهاتف أو رقم العضو" autofocus>
+            <% } %>
+            <input type="password" name="passcode" placeholder="الرمز السري" required autofocus>
+            <button type="submit">دخول</button>
+        </form>
+        
+        <% if (!isAdmin) { %>
+        <div style="margin-top: 15px;">
+            <a href="#" onclick="toggleForgot(event)" style="color: #2980b9; text-decoration: none; font-size: 0.9rem;">نسيت الرمز السري؟</a>
+        </div>
+
+        <div id="forgot-form" style="display:none; margin-top:20px; border-top:1px solid #eee; padding-top:20px; text-align: right;">
+            <h3 style="font-size:1rem; margin-bottom:15px; color: #2c3e50;">استعادة الرمز السري</h3>
+            <form action="/jam3ya/forgot-password" method="POST">
+                <input type="text" name="phone" placeholder="رقم الهاتف المسجل" required style="text-align: right;">
+                <input type="email" name="email" placeholder="البريد الإلكتروني" required style="text-align: right;">
+                <button type="submit" style="background: #2980b9;">إرسال الرمز</button>
+            </form>
+        </div>
+        <% } %>
+
+        <a href="/" class="back-link">العودة للرئيسية</a>
+    </div>
+
+    <script>
+        function toggleForgot(e) {
+            e.preventDefault();
+            var form = document.getElementById('forgot-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,999 @@
+/* =============================================================================
+   DUKAN ALHUJOOR - PROFESSIONAL THEME V2.1 (RESTRUCTURED & FIXED)
+   ============================================================================= */
+
+/* --- 1. FONTS & ROOT VARIABLES --- */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+:root {
+    /* Color Palette */
+    --primary-color: #007bff;
+    --primary-dark: #0056b3;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+    --warning-color: #ffc107;
+    
+    /* Typography */
+    --font-family-base: 'Cairo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --text-light: #f8f9fa;
+
+    /* Background & Surfaces */
+    --bg-body: #f8f9fa;
+    --bg-surface: #ffffff;
+    --border-color: #dee2e6;
+
+    /* Sizing & Spacing */
+    --border-radius: 0.5rem;
+    --spacing-unit: 1rem;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+    /* Transitions */
+    --transition-fast: all 0.2s ease-in-out;
+}
+
+/* --- 2. DARK THEME VARIABLES --- */
+[data-theme="dark"] {
+    --primary-color: #3f9eff;
+    --primary-dark: #69b4ff;
+    --secondary-color: #8a939b;
+    --success-color: #34c759;
+    --error-color: #ff453a;
+    --warning-color: #ffcc00;
+    
+    --text-primary: #e5e5e5;
+    --text-secondary: #8a939b;
+
+    --bg-body: #121212;
+    --bg-surface: #1e1e1e;
+    --border-color: #3a3a3c;
+    
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+}
+
+/* --- 3. GLOBAL STYLES & RESETS --- */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family-base);
+    line-height: 1.7;
+    color: var(--text-primary);
+    background-color: var(--bg-body);
+    min-height: 100vh;
+    direction: rtl;
+    text-align: right;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+body, button, input, select, textarea {
+    font-family: var(--font-family-base);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: calc(var(--spacing-unit) * 1.5);
+}
+
+/* --- 4. LAYOUT: HEADER, FOOTER, BANNERS --- */
+header {
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.logo-img {
+    height: 36px;
+}
+
+.vision-banner {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    padding: 0.75rem 0;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .vision-banner {
+    background-color: #1e1e1e;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.vision-banner .container {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.vision-text {
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+footer {
+    text-align: center;
+    padding: calc(var(--spacing-unit) * 2);
+    margin-top: calc(var(--spacing-unit) * 2);
+    color: var(--text-secondary);
+    background-color: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
+}
+
+/* --- 5. GENERAL COMPONENTS --- */
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    border: 1px solid transparent;
+    border-radius: var(--border-radius);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    white-space: nowrap;
+}
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    border-color: var(--primary-color);
+}
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+.btn-secondary {
+    background-color: transparent;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.btn-secondary:hover {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+}
+
+/* Forms (Auth & General) */
+.form-card, .auth-card {
+    background-color: var(--bg-surface);
+    padding: calc(var(--spacing-unit) * 2);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    max-width: 700px;
+    margin: calc(var(--spacing-unit) * 2) auto;
+}
+.form-header, .auth-header {
+    text-align: center;
+    margin-bottom: calc(var(--spacing-unit) * 2);
+}
+.form-title, .auth-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+.form-group { margin-bottom: 1.5rem; }
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    transition: var(--transition-fast);
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+}
+.form-textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+.auth-btn, .submit-btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: 700;
+    font-size: 1rem;
+    width: 100%;
+}
+.auth-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+.auth-link:hover { text-decoration: underline; }
+
+/* Alerts */
+.alert {
+    padding: var(--spacing-unit);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-unit);
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.alert-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+.alert-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+
+
+/* --- 6. PAGE-SPECIFIC COMPONENTS --- */
+
+/* Product Cards */
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: var(--spacing-unit);
+}
+.product-card {
+    background-color: var(--bg-surface);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: var(--transition-fast);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+.product-image-container {
+    width: 100%;
+    height: 220px;
+    background-color: #eee;
+    overflow: hidden;
+}
+.product-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+.product-card:hover .product-image { transform: scale(1.05); }
+.product-info {
+    padding: 1.25rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+.product-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+.product-price {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+.product-meta {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: auto;
+}
+
+/* Badges (New/Used, Admin Status, etc.) */
+.product-condition-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-light);
+    border-radius: 0.25rem;
+    z-index: 10;
+}
+.badge {
+    padding: 0.25em 0.6em;
+    font-size: 0.8em;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+.badge-new, .badge-available { background-color: var(--success-color); color: white; }
+.badge-used { background-color: var(--warning-color); color: #333; }
+.badge-sold { background-color: var(--secondary-color); color: white; }
+.badge-hidden { background-color: var(--error-color); color: white; }
+
+/* Category Filters */
+.category-filters-wrapper { margin-bottom: 2rem; }
+.category-filters-list {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.category-filters-list::-webkit-scrollbar { display: none; }
+.category-filter-item {
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    background-color: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 2rem;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    transition: var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+}
+.category-filter-item:hover {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+.category-filter-item.active {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow);
+}
+
+
+/* --- 7. MOBILE NAVIGATION --- */
+.mobile-menu-toggle {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px;
+    height: 30px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1010;
+}
+.mobile-menu-toggle span {
+    width: 30px;
+    height: 3px;
+    background: var(--text-primary);
+    border-radius: 10px;
+    transition: all 0.3s linear;
+}
+.mobile-nav-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1001;
+}
+.mobile-nav-overlay.open { opacity: 1; visibility: visible; }
+.mobile-nav {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 280px;
+    height: 100%;
+    background: var(--bg-surface);
+    box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+    transition: right 0.3s ease-in-out;
+    z-index: 1002;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+}
+.mobile-nav.open { right: 0; }
+.nav-close {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    font-size: 2rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.mobile-nav .nav-links { list-style: none; padding-top: 2rem; }
+.mobile-nav .nav-links a {
+    display: block;
+    padding: 0.75rem 0;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+.mobile-nav .nav-links a:hover { color: var(--primary-color); }
+.desktop-links { display: none !important; }
+
+/* --- 8. ADMIN & PROFILE SPECIFIC STYLES --- */
+
+/* Admin Panel Shortcut on Homepage */
+.admin-panel-shortcut {
+    background-color: #fffbeb;
+    border: 1px solid var(--warning-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-sm);
+}
+.admin-panel-content {
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.admin-panel-content span { font-weight: 600; color: #856404; }
+[data-theme="dark"] .admin-panel-shortcut { background-color: #2e240b; }
+[data-theme="dark"] .admin-panel-content span { color: var(--warning-color); }
+
+/* Admin Table */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+.admin-table th, .admin-table td {
+    padding: 0.75rem;
+    text-align: right;
+    border: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+.admin-table thead { background-color: var(--bg-body); font-weight: 600; }
+.admin-table tbody tr:nth-of-type(even) { background-color: var(--bg-body); }
+.table-product-image {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 0.25rem;
+}
+.table-product-image-placeholder {
+    width: 50px;
+    height: 50px;
+    background-color: #e9ecef;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+}
+.product-name-cell { font-weight: 600; }
+.price-cell { color: var(--success-color); font-weight: 600; }
+.action-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.btn.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+.btn-success { background-color: var(--success-color); color: white;}
+.btn-warning { background-color: var(--warning-color); color: #333;}
+.btn-danger { background-color: var(--error-color); color: white;}
+
+/* Profile Page Header */
+.profile-header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.5rem;
+    background-color: var(--bg-surface);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+}
+.profile-header-avatar { flex-shrink: 0; }
+.profile-avatar-img, .profile-avatar-placeholder {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.profile-avatar-placeholder {
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: bold;
+}
+.profile-header-content {
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+.profile-header-info h1 { font-size: 1.8rem; margin: 0 0 0.5rem 0; }
+.profile-header-info p { margin: 0.25rem 0; color: var(--text-secondary); }
+.profile-header-info .join-date { font-size: 0.9rem; }
+
+
+/* --- 9. UNIVERSAL IMAGE PREVIEW STYLING (ADD & EDIT PAGES) --- */
+.current-image-container, .image-preview-container {
+    background-color: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-unit);
+    margin-bottom: 1.5rem;
+    text-align: center;
+    box-sizing: border-box;
+}
+.current-image-label, .preview-label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-unit);
+    font-size: 0.9rem;
+}
+.current-image-wrapper, .preview-image-wrapper {
+    position: relative;
+    max-width: 200px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    background-color: #e9ecef;
+}
+.current-product-image, .preview-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.delete-image-btn, .remove-image-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: var(--error-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: var(--transition-fast);
+    box-shadow: var(--shadow);
+    z-index: 5;
+}
+.current-image-wrapper:hover .delete-image-btn,
+.preview-image-wrapper:hover .remove-image-btn {
+    opacity: 1;
+}
+
+/* --- 10. RESPONSIVE DESIGN --- */
+
+@media (max-width: 768px) {
+    .container { padding: 1rem; }
+    .header-content { padding: 0.75rem 1rem; }
+    .products-grid { grid-template-columns: 1fr; }
+    
+    /* Form Responsiveness */
+    .form-card, .auth-card { padding: 1.5rem; }
+    .form-title, .auth-title { font-size: 1.5rem; }
+    .form-row, .form-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+        margin-bottom: 0;
+    }
+    .form-row .form-group, .form-grid .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    /* Profile Header Responsiveness */
+    .profile-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .profile-header-content {
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+    }
+    .profile-header-info { margin-bottom: 1.5rem; }
+    .profile-header-actions .btn { width: 100%; }
+}
+
+@media (min-width: 769px) {
+    /* Desktop Navigation */
+    .mobile-menu-toggle { display: none; }
+    .desktop-links { display: flex !important; }
+    
+    /* Category Filters */
+    .category-filters-list {
+        flex-wrap: wrap;
+        overflow-x: hidden;
+        padding-bottom: 0;
+    }
+}
+/* --- 17. GLOBAL LOADING OVERLAY --- */
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.7); /* خلفية بيضاء شبه شفافة */
+    backdrop-filter: blur(5px); /* التأثير الضبابي */
+    -webkit-backdrop-filter: blur(5px);
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    
+    z-index: 9999; /* لضمان أنه فوق كل شيء آخر */
+    
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.loading-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Dark theme adjustment */
+[data-theme="dark"] .loading-overlay {
+    background-color: rgba(18, 18, 18, 0.7);
+}
+
+.loading-overlay .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid rgba(0, 0, 0, 0.1);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.loading-overlay .loading-text {
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Animation for the spinner */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+/* --- FIX: Navbar Avatar Size Correction --- */
+
+.user-avatar-desktop {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+    
+    /* This ensures that if the content is an image, it doesn't overflow */
+    overflow: hidden; 
+}
+
+/* This targets the actual image inside the avatar container */
+.user-avatar-desktop img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures the image covers the circle without distortion */
+}
+/* --- 18. DUKKAN LIST & SINGLE PAGE STYLES --- */
+
+/* Grid for the list of dukkanlar */
+.dukkan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.dukan-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: var(--bg-surface);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: var(--transition-fast);
+}
+.dukan-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+    color: var(--primary-color);
+}
+.dukan-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.dukan-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.dukan-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem 0;
+}
+.dukan-product-count {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Header for the single dukan page */
+.dukan-header {
+    background-color: var(--bg-surface);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+}
+.dukan-header-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 4rem;
+    font-weight: 700;
+    overflow: hidden;
+    border: 4px solid white;
+    box-shadow: var(--shadow-lg);
+}
+.dukan-header-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.dukan-header-info h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem 0;
+}
+.dukan-header-info p {
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+}
+/* --- 19. PRODUCT DETAIL MODAL --- */
+
+.product-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    z-index: 1010;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
+
+.product-modal-content {
+    background-color: var(--bg-surface);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: var(--shadow-lg);
+}
+
+.product-modal-close-btn {
+    position: absolute;
+    top: 0.5rem;
+    left: 1rem; /* Adjusted for RTL */
+    font-size: 2rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.product-modal-image {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+}
+
+.product-modal-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.product-modal-price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+}
+
+.product-modal-description h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.product-modal-description p {
+    line-height: 1.8;
+    color: var(--text-secondary);
+    white-space: pre-wrap; /* Preserves line breaks from the description */
+}
+/* --- 20. VIDEO MODAL STYLING --- */
+.video-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px);
+    z-index: 1020; display: flex; justify-content: center; align-items: center;
+}
+.video-modal-content {
+    position: relative; width: 90%; max-width: 800px;
+}
+.video-modal-close-btn {
+    position: absolute; top: -35px; right: 0; font-size: 2.5rem;
+    background: none; border: none; color: white; cursor: pointer;
+}
+.video-wrapper {
+    position: relative; padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+    height: 0; overflow: hidden;
+}
+.video-wrapper iframe {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+}
+/* --- Main Store Logo Styling --- */
+
+.main-dukan-logo-container {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 1rem 0;
+}
+
+.main-dukan-logo {
+    max-width: 100%; /* يضمن أن الصورة لن تخرج عن الشاشة على الهواتف */
+    width: auto; /* يحافظ على نسبة أبعاد الصورة */
+    max-height: 150px; /* تحكم في أقصى ارتفاع للشعار على الشاشات الكبيرة */
+    object-fit: contain;
+}
+/* --- 21. IMAGE MODAL STYLING --- */
+
+.product-image-zoomable {
+    cursor: zoom-in; /* تغيير شكل المؤشر ليوحي بإمكانية النقر */
+}
+
+.image-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 1030; /* يجب أن يكون أعلى من نافذة الفيديو */
+    display: flex; justify-content: center; align-items: center;
+    padding: 1rem;
+}
+
+.image-modal-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+}
+
+.image-modal-content img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.image-modal-close-btn {
+    position: absolute; top: -40px; right: 0;
+    font-size: 2.5rem; line-height: 1;
+    background: none; border: none;
+    color: white; cursor: pointer;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}

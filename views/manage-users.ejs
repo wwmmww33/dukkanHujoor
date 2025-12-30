@@ -1,0 +1,99 @@
+<main class="main-content">
+    <div class="container">
+        <div class="page-header" style="text-align: center; margin-bottom: 2rem;">
+            <h2>👥 إدارة المستخدمين</h2>
+            <p>عرض جميع المستخدمين المسجلين والتحكم في حساباتهم.</p>
+        </div>
+
+        <div style="background-color: var(--bg-surface); padding: 2rem; border-radius: var(--border-radius); box-shadow: var(--shadow);">
+            <% if (users && users.length > 0) { %>
+                <div style="overflow-x: auto;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>البريد الإلكتروني</th>
+                                <th>رقم الهاتف</th>
+                                <th>تاريخ التسجيل</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% users.forEach(user => { %>
+                                <!-- لا نعرض حسابات المدراء الآخرين لتجنب إيقافهم بالخطأ -->
+                                <% if (!user.is_admin) { %>
+                                    <tr>
+                                        <td class="product-name-cell"><%= user.name %></td>
+                                        <td><%= user.email %></td>
+                                        <td><%= user.phone %></td>
+                                        <td><%= new Date(user.created_at).toLocaleDateString('ar-SA') %></td>
+                                        <td>
+                                            <% if (user.is_suspended) { %>
+                                                <span class="badge badge-hidden">موقوف</span>
+                                            <% } else { %>
+                                                <span class="badge badge-available">نشط</span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <% if (user.is_suspended) { %>
+                                                    <button onclick="unsuspendUser(<%= user.id %>)" class="btn btn-sm btn-success">إلغاء الإيقاف</button>
+                                                <% } else { %>
+                                                    <button onclick="suspendUser(<%= user.id %>)" class="btn btn-sm btn-warning">إيقاف</button>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% } %>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            <% } else { %>
+                <p style="text-align: center;">لا يوجد مستخدمون لعرضهم.</p>
+            <% } %>
+        </div>
+    </div>
+</main>
+
+<script>
+    // --- دالة إيقاف المستخدم ---
+    function suspendUser(userId) {
+        const reason = prompt("الرجاء إدخال سبب إيقاف المستخدم (سيظهر له):");
+        if (reason && reason.trim() !== '') {
+            fetch(`/admin/suspend-user/${userId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء إيقاف المستخدم.');
+                }
+            });
+        } else if (reason !== null) {
+            alert('يجب إدخال سبب للإيقاف.');
+        }
+    }
+
+    // --- دالة إلغاء إيقاف المستخدم ---
+    function unsuspendUser(userId) {
+        if (confirm('هل أنت متأكد من إلغاء إيقاف هذا المستخدم؟')) {
+            fetch(`/admin/unsuspend-user/${userId}`, {
+                method: 'POST'
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء إلغاء الإيقاف.');
+                }
+            });
+        }
+    }
+</script>

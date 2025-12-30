@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Database files
+*.sqlite
+*.db
+*.sqlite3
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Uploaded files (keep .gitkeep if it exists, otherwise ignore content)
+uploads/*
+!uploads/.gitkeep
+
+# Temporary files
+tmp/
+
+# Data dumps and backups
+*.zip
+*.sql
+*.xlsx
+*.bak
+
+# Optional: Ignore specific data files if they are not already covered
+dukaazbg_jam3yatKA

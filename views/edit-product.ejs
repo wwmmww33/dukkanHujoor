@@ -1,0 +1,224 @@
+<main class="main-content">
+        <div class="product-form-container fade-in">
+    <div class="product-form-card">
+        <div class="form-header">
+            <h1 class="form-title">✏️ تعديل المنتج</h1>
+            <p class="form-subtitle">قم بتحديث بيانات منتجك</p>
+        </div>
+        
+        <% if (error) { %>
+            <div class="alert alert-error">
+                <i class="error-icon">⚠️</i>
+                <%= error %>
+            </div>
+        <% } %>
+        
+        <% if (success) { %>
+            <div class="alert alert-success">
+                <i class="success-icon">✅</i>
+                <%= success %>
+            </div>
+        <% } %>
+        
+        <form method="POST" action="/edit-product/<%= product.id %>" enctype="multipart/form-data" class="product-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="name" class="form-label">📝 عنوان المنتج *</label>
+                    <input type="text" id="name" name="name" required 
+                           class="form-input"
+                           placeholder="أدخل عنوان واضح وجذاب للمنتج"
+                           value="<%= product.name %>"
+                           maxlength="100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="price" class="form-label">💰 السعر (ريال) *</label>
+                    <input type="number" id="price" name="price" required 
+                           class="form-input"
+                           placeholder="0.00" 
+                           value="<%= product.price %>"
+                           min="0" 
+                           step="0.01">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">✨ حالة المنتج *</label>
+                <div style="display: flex; gap: 20px; padding: 10px 0;">
+                    <label style="cursor:pointer;"><input type="radio" name="product_condition" value="used" <%= product.product_condition === 'used' ? 'checked' : '' %> required> مستعمل</label>
+                    <label style="cursor:pointer;"><input type="radio" name="product_condition" value="new" <%= product.product_condition === 'new' ? 'checked' : '' %> required> جديد</label>
+                </div>
+            </div>
+            <!-- ======== انتهت الإضافة ======== -->
+
+           
+            <div class="form-group">
+                <label for="category_id" class="form-label">🏷️ التصنيف</label>
+                <select id="category_id" name="category_id" class="form-select">
+                    <option value="">اختر التصنيف المناسب</option>
+                    <% categories.forEach(category => { %>
+                        <option value="<%= category.id %>" <%= product.category_id == category.id ? 'selected' : '' %>>
+                            <% if (category.name === 'إلكترونيات') { %>📱<% } %>
+                            <% if (category.name === 'ملابس') { %>👕<% } %>
+                            <% if (category.name === 'منزل وحديقة') { %>🏠<% } %>
+                            <% if (category.name === 'سيارات') { %>🚗<% } %>
+                            <% if (category.name === 'كتب') { %>📚<% } %>
+                            <% if (category.name === 'رياضة') { %>⚽<% } %>
+                            <% if (category.name === 'أخرى') { %>📦<% } %>
+                            <%= category.name %>
+                        </option>
+                    <% }); %>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="description" class="form-label">📄 وصف المنتج</label>
+                <textarea id="description" name="description" 
+                          class="form-textarea"
+                          placeholder="اكتب وصفاً مفصلاً للمنتج (الحالة، المواصفات، المميزات، إلخ)"
+                          maxlength="500"><%= product.description || '' %></textarea>
+                <small class="form-hint">الوصف اختياري ولكنه يساعد في جذب المشترين وزيادة الثقة</small>
+            </div>
+            <!-- ======== بداية حقل رابط الفيديو ======== -->
+<div class="form-group">
+    <label for="youtube_link" class="form-label">🎥 رابط فيديو يوتيوب (اختياري)</label>
+    <input type="url" id="youtube_link" name="youtube_link" 
+           class="form-input"
+           value="<%= product.youtube_link || '' %>"
+           placeholder="https://www.youtube.com/watch?v=...">
+</div>
+            <div class="form-group">
+                <label class="form-label">📸 صور المنتج</label>
+                
+          <% if (product.image_path) { %>
+    <div class="current-image-container">
+        <span class="current-image-label">الصورة الحالية للمنتج</span>
+        <div class="current-image-wrapper">
+            <img src="/uploads/<%= product.image_path %>" alt="<%= product.title %>" class="current-product-image">
+            <button type="button" class="delete-image-btn" onclick="deleteCurrentImage('<%= product.image_path %>')" title="حذف الصورة">
+                🗑️
+            </button>
+        </div>
+    </div>
+<% } %>
+                
+            <div class="file-upload-area">
+    <input type="file" id="image" name="image" 
+           accept="image/jpeg,image/jpg,image/png,image/gif"
+           class="file-input">
+    <div class="file-upload-text">
+        <i class="upload-icon">🔄</i>
+        <span><strong>استبدال الصورة الحالية</strong></span>
+        <span>اضغط هنا أو اسحب صورة جديدة لاستبدال القديمة</span>
+        <small>سيتم حذف الصورة القديمة تلقائياً</small>
+    </div>
+</div>
+                <div id="imagePreview" class="image-preview"></div>
+                
+               
+            </div>
+            
+            <div class="form-actions">
+<button type="submit" class="btn btn-primary btn-large" onclick="showLoadingOverlay()">
+                        <i class="btn-icon">💾</i>
+                    حفظ التغييرات
+                </button>
+                <a href="/my-products" class="btn btn-secondary btn-large">
+                    <i class="btn-icon">↩️</i>
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<script>
+// تحديد العناصر باستخدام الـ ID الصحيح
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- عناصر التحكم في رفع الصور ---
+        const imageInput = document.getElementById('image');
+        const imagePreview = document.getElementById('imagePreview'); // حاوية المعاينة
+        const fileUploadArea = document.querySelector('.file-upload-area');
+
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) { // 5MB
+                alert('⚠️ حجم الصورة كبير جداً. يرجى اختيار صورة أصغر من 5 ميجابايت.');
+                e.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                // نعرض المعاينة في الحاوية المخصصة لها
+                imagePreview.innerHTML = `
+                    <div class="preview-container">
+                        <img src="${event.target.result}" alt="معاينة الصورة الجديدة" class="preview-image">
+                        <p class="preview-text">✅ صورة جديدة جاهزة للاستبدال</p>
+                    </div>
+                `;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // --- تحسين تجربة السحب والإفلات ---
+        fileUploadArea.addEventListener('dragover', (e) => e.preventDefault());
+        fileUploadArea.addEventListener('dragleave', (e) => e.preventDefault());
+        fileUploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            if (e.dataTransfer.files.length > 0) {
+                imageInput.files = e.dataTransfer.files;
+                imageInput.dispatchEvent(new Event('change'));
+            }
+        });
+        
+        fileUploadArea.addEventListener('click', function(e) {
+            if (e.target.tagName.toLowerCase() !== 'input') {
+                imageInput.click();
+            }
+        });
+        
+        // --- إظهار شاشة التحميل عند إرسال النموذج ---
+        const productForm = document.querySelector('.product-form');
+        if (productForm) {
+            productForm.addEventListener('submit', function() {
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) {
+                    loadingOverlay.classList.add('visible');
+                }
+            });
+        }
+    });
+
+    // --- دوال التحكم في الصور (تبقى خارج DOMContentLoaded) ---
+    function deleteCurrentImage(imagePath) {
+        if (confirm('هل أنت متأكد من حذف هذه الصورة؟ سيتم حذفها نهائياً.')) {
+            fetch('/delete-product-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    productId: <%= product.id %>,
+                    imagePath: imagePath 
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('حدث خطأ في حذف الصورة');
+                }
+            })
+            .catch(err => {
+                console.error('Delete Image Error:', err);
+                alert('حدث خطأ فني');
+            });
+        }
+    }
+    
+</script>
+</script>
+    </main>

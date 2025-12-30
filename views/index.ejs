@@ -1,0 +1,126 @@
+
+<div class="container">
+<!-- ======== بداية الكود النهائي لعرض الشعار أو عنوان السوق ======== -->
+<div class="main-dukan-logo-container">
+    <img src="/assets/main_logo.png" alt="شعار دكان الحجور الرئيسي" class="main-dukan-logo">
+</div>
+
+</div>
+    <% if (typeof user !== 'undefined' && user && user.is_admin) { %>
+        <div class="admin-panel-shortcut">
+            <div class="admin-panel-content">
+                <span>👑 مرحباً بك أيها المدير، أنت تشاهد الموقع كمسؤول.</span>
+                <a href="/admin" class="btn btn-primary">الانتقال إلى لوحة التحكم ⚙️</a>
+            </div>
+        </div>
+    <% } %>
+
+    <!-- فلاتر التصنيفات -->
+    <div class="category-filters-wrapper">
+        <div class="category-filters-list">
+            <a href="/" class="category-filter-item <%= !selectedCategory || selectedCategory === 'all' ? 'active' : '' %>">
+                الكل
+            </a>
+            <% if (categories && categories.length > 0) { %>
+                <% categories.forEach(category => { %>
+                    <a href="/?category=<%= category.id %>" class="category-filter-item <%= selectedCategory == category.id ? 'active' : '' %>">
+                        <%= category.name %>
+                    </a>
+                <% }); %>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- شبكة عرض المنتجات -->
+    <div class="products-grid">
+        <% if (products.length === 0) { %>
+            <div style="grid-column: 1 / -1; text-align: center; padding: 50px;">
+                <h3>لا توجد منتجات متاحة حالياً</h3>
+                <% if (typeof user !== 'undefined' && user) { %>
+                    <p><a href="/add-product" class="btn btn-primary">كن أول من يضيف منتج</a></p>
+                <% } else { %>
+                    <p><a href="/register" class="btn btn-primary"> سجل الآن لتبدأ البيع</a></p>
+                <% } %>
+            </div>
+        <% } else { %>
+            <% products.forEach(product => { %>
+                <div class="product-card">
+    
+                    <!-- شريط حالة المنتج (جديد/مستعمل) -->
+                    <% if (product.product_condition) { %>
+                        <div class="product-condition-badge <%= product.product_condition === 'new' ? 'badge-new' : 'badge-used' %>">
+                            <%= product.product_condition === 'new' ? 'جديد' : 'مستعمل' %>
+                        </div>
+                    <% } %>
+                    
+                    <!-- حاوية صورة المنتج -->
+                    <div class="product-image-container">
+                        <% if (product.image_path) { %>
+<img src="/uploads/<%= product.image_path %>" alt="<%= product.name %>" class="product-image product-image-zoomable">
+                        <% } else { %>
+                            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">لا توجد صورة</div>
+                        <% } %>
+                    </div>
+                    
+                    <!-- حاوية معلومات المنتج -->
+                    <div class="product-info">
+                        <h3 class="product-title"><%= product.name %></h3>
+                        <p class="product-price"><%= product.price %> ريال</p>
+                        
+                        <!-- وصف مختصر للمنتج -->
+                        <% if (product.description) { %>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.6;">
+                                <%= product.description.substring(0, 100) %><%= product.description.length > 100 ? '...' : '' %>
+                            </p>
+                        <% } %>
+
+                        <!-- معلومات إضافية (البائع والتاريخ) -->
+                        <div class="product-meta">
+                            <span>👤 <%= product.seller_name %></span>
+                            <span>📅 <%= new Date(product.created_at).toLocaleDateString('en-GB') %></span>
+                        </div>
+                        
+                        <!-- قسم الأزرار (تواصل وبحث وفيديو) -->
+                        <div class="product-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            
+                            <!-- ======== بداية التعديل النهائي ======== -->
+                            <!-- زر شاهد الفيديو (يستخدم data-attributes) -->
+                            <% if (product.youtube_link) { %>
+                                <button data-video-link="<%= product.youtube_link %>" class="btn btn-secondary video-btn" style="flex: 1; background-color: #FF0000; border-color: #FF0000; color: white;" title="شاهد فيديو للمنتج">
+                                    ▶️ شاهد
+                                </button>
+                            <% } %>
+
+                            <!-- زر البحث في الإنترنت -->
+                            <% if (product.image_path) { %>
+                                <a href="https://lens.google.com/uploadbyurl?url=<%= req.protocol %>://<%= req.get('host') %>/uploads/<%= product.image_path %>" 
+                                   target="_blank" class="btn btn-secondary" style="flex: 1;" title="ابحث عن هذا المنتج في الإنترنت">
+                                   🌐 ابحث
+                                </a>
+                            <% } %>
+
+                            <!-- زر التواصل عبر واتساب -->
+                          <!-- ======== بداية التحقق من تسجيل الدخول لواتساب ======== -->
+<% if (typeof user !== 'undefined' && user) { %>
+    <!-- إذا كان المستخدم مسجلاً، اعرض زر واتساب -->
+    <a href="https://wa.me/968<%= product.seller_phone %>?text=مرحباً، أنا مهتم بمنتجك: <%= encodeURIComponent(product.title) %>"
+       target="_blank" class="btn btn-primary" style="flex: 1; background-color: #25D366; border-color: #25D366;">
+        💬 واتساب
+    </a>
+<% } else { %>
+    <!-- إذا كان المستخدم زائرًا، اعرض زر تسجيل الدخول -->
+    <a href="/login" class="btn btn-primary" style="flex: 1; background-color: #25D366; border-color: #25D366;">
+        🔒 سجل للتواصل
+    </a>
+<% } %>
+<!-- ======== نهاية التحقق من تسجيل الدخول لواتساب ======== -->
+                            <!-- ======== نهاية التعديل النهائي ======== -->
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+        <% } %>
+    </div>
+</div>
+
+<!-- لا حاجة لوجود <script> هنا، لأنه موجود في layout.ejs -->

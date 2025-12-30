@@ -1,0 +1,94 @@
+{
+  "name": "dukan-alhujoor-production",
+  "version": "2.0.0",
+  "description": "دكان الحجور - السوق الإلكتروني - إصدار الإنتاج",
+  "main": "server-production-fixed.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "production": "NODE_ENV=production node server.js"
+  },
+  "keywords": [
+    "ecommerce",
+    "marketplace",
+    "arabic",
+    "nodejs",
+    "mysql",
+    "production"
+  ],
+  "author": "دكان الحجور",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "connect-sqlite3": "^0.9.16",
+    "cookie-parser": "^1.4.6",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.10",
+    "express": "^4.18.2",
+    "express-ejs-layouts": "^2.5.1",
+    "express-mysql-session": "^3.0.3",
+    "express-rate-limit": "^7.1.5",
+    "express-session": "^1.17.3",
+    "helmet": "^7.1.0",
+    "i18n": "^0.15.1",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.6.5",
+    "nodemailer": "^7.0.12",
+    "sharp": "^0.32.6",
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dukan-alhujoor/marketplace.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dukan-alhujoor/marketplace/issues"
+  },
+  "homepage": "https://dukan-alhujoor.com",
+  "config": {
+    "node_version": "16.20.2",
+    "npm_version": "8.19.4"
+  },
+  "production": {
+    "memory_limit": "256MB",
+    "node_options": "--max-old-space-size=256 --no-experimental-fetch",
+    "recommended_hosting": [
+      "cPanel with Node.js 16.x support",
+      "Shared hosting with Node.js",
+      "VPS with Node.js 16.x"
+    ]
+  },
+  "deployment": {
+    "requirements": {
+      "node": ">=16.0.0 <17.0.0",
+      "mysql": ">=5.7.0",
+      "memory": ">=256MB",
+      "storage": ">=1GB"
+    },
+    "environment_variables": {
+      "NODE_ENV": "production",
+      "PORT": "3000",
+      "DB_HOST": "localhost",
+      "DB_USER": "database_username",
+      "DB_PASSWORD": "database_password",
+      "DB_NAME": "database_name",
+      "SESSION_SECRET": "your-secret-key-here"
+    }
+  },
+  "notes": {
+    "compatibility": "هذا الإصدار متوافق مع Node.js 16.x لتجنب مشاكل WebAssembly",
+    "memory_optimization": "تم تحسين استخدام الذاكرة لتعمل على الاستضافة المشتركة",
+    "database": "يتطلب MySQL 5.7+ مع دعم UTF-8MB4",
+    "installation": "استخدم 'npm run install-deps' لتثبيت المكتبات في الإنتاج"
+  }
+}

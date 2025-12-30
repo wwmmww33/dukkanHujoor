@@ -1,0 +1,186 @@
+<main class="main-content">
+        <div class="product-form-container fade-in">
+    <div class="product-form-card">
+        <div class="form-header">
+            <h1 class="form-title">✨ إضافة منتج جديد</h1>
+            <p class="form-subtitle">شارك منتجك مع المجتمع</p>
+        </div>
+        
+        <% if (error) { %>
+            <div class="alert alert-error">
+                <i class="error-icon">⚠️</i>
+                <%= error %>
+            </div>
+        <% } %>
+        
+        <% if (success) { %>
+            <div class="alert alert-success">
+                <i class="success-icon">✅</i>
+                <%= success %>
+            </div>
+        <% } %>
+        
+        <form method="POST" action="/add-product" enctype="multipart/form-data" class="product-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="name" class="form-label">📝 عنوان المنتج *</label>
+                    <input type="text" id="name" name="title" required 
+                           class="form-input"
+                           placeholder="أدخل عنوان واضح وجذاب للمنتج"
+                           maxlength="100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="price" class="form-label">💰 السعر (ريال) *</label>
+                    <input type="number" id="price" name="price" required 
+                           class="form-input"
+                           placeholder="0.00" 
+                           min="0" 
+                           step="0.01">
+                </div>
+            </div>
+            </div>
+</div> <!-- This closes the form-row -->
+
+<!-- ======== بداية إضافة حقل التصنيف ======== -->
+<div class="form-group">
+    <label for="category_id" class="form-label">🏷️ اختر تصنيفاً (سيتم تحسينه بالذكاء الاصطناعي)</label>
+    <select id="category_id" name="category_id" class="form-select" required>
+        <option value="">-- اختر التصنيف المبدئي --</option>
+        <% if (categories && categories.length > 0) { %>
+            <% categories.forEach(category => { %>
+                <option value="<%= category.id %>"><%= category.name %></option>
+            <% }); %>
+        <% } %>
+    </select>
+</div>
+
+                        <!-- ======== ابدأ الإضافة من هنا ======== -->
+            <div class="form-group">
+                <label class="form-label">✨ حالة المنتج *</label>
+                <div style="display: flex; gap: 20px; padding: 10px 0;">
+                    <label style="cursor:pointer;"><input type="radio" name="product_condition" value="used" checked required> مستعمل</label>
+                    <label style="cursor:pointer;"><input type="radio" name="product_condition" value="new" required> جديد</label>
+                </div>
+            </div>
+     
+   
+            
+            <div class="form-group">
+                <label for="description" class="form-label">📄 وصف المنتج</label>
+                <textarea id="description" name="description" 
+                          class="form-textarea"
+                          placeholder="اكتب وصفاً مفصلاً للمنتج (الحالة، المواصفات، المميزات، إلخ)"
+                          maxlength="500"></textarea>
+                <small class="form-hint">الوصف اختياري ولكنه يساعد في جذب المشترين وزيادة الثقة</small>
+            </div>
+  <!-- ======== بداية حقل رابط الفيديو ======== -->
+<div class="form-group">
+    <label for="youtube_link" class="form-label">🎥 رابط فيديو يوتيوب (اختياري)</label>
+    <input type="url" id="youtube_link" name="youtube_link" 
+           class="form-input"
+           placeholder="https://www.youtube.com/watch?v=...">
+    <small class="form-hint">يمكنك إضافة رابط فيديو للمنتج لمزيد من التوضيح.</small>
+</div>          
+        <!-- ======== بداية قسم رفع الصورة المحدث ======== -->
+<div class="form-group">
+    <label for="image" class="form-label">📸 صورة المنتج</label>
+    
+    <!-- حاوية المعاينة (ستكون فارغة في البداية) -->
+    <div id="imagePreviewContainer" class="image-preview-container" style="display: none;">
+        <!-- سيتم إضافة المعاينة هنا بواسطة الجافاسكريبت -->
+    </div>
+
+    <!-- منطقة السحب والإفلات -->
+    <div class="file-upload-area" id="fileUploadArea">
+        <input type="file" id="image" name="image" 
+               accept="image/jpeg,image/jpg,image/png,image/gif"
+               class="file-input">
+        <div class="file-upload-text">
+            <i class="upload-icon">📷</i>
+            <span>اضغط لاختيار صورة أو اسحبها هنا</span>
+            <small>سيتم عرض معاينة للصورة هنا</small>
+        </div>
+    </div>
+</div>
+<!-- ======== نهاية قسم رفع الصورة المحدث ======== -->
+            
+
+            
+<button type="submit" class="submit-btn pulse" id="submitBtn" onclick="showLoadingOverlay()">
+                    <span class="btn-icon" id="btnIcon">🚀</span>
+                <span id="btnText">إضافة المنتج</span>
+                <div class="loading-spinner" id="loadingSpinner" style="display: none;">
+                    <div class="spinner"></div>
+                </div>
+            </button>
+        </form>
+        
+        <div class="form-footer">
+            <a href="/my-products" class="footer-btn">📋 عرض منتجاتي</a>
+            <a href="/" class="footer-btn">🏠 العودة للرئيسية</a>
+        </div>
+    </div>
+</div>
+
+<script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- عناصر التحكم في رفع الصور ---
+        const imageInput = document.getElementById('image');
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const uploadArea = document.getElementById('fileUploadArea');
+
+        imageInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) { // 5MB
+                alert('⚠️ حجم الصورة كبير جداً. يرجى اختيار صورة أصغر من 5 ميجابايت.');
+                event.target.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewContainer.innerHTML = `
+                    <span class="preview-label">معاينة الصورة المختارة:</span>
+                    <div class="preview-image-wrapper">
+                        <img src="${e.target.result}" class="preview-image" alt="معاينة الصورة">
+                        <button type="button" class="remove-image-btn" onclick="removeImage()" title="إزالة الصورة">🗑️</button>
+                    </div>
+                `;
+                previewContainer.style.display = 'block';
+                uploadArea.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        });
+
+        uploadArea.addEventListener('click', function(e) {
+            if (e.target.tagName.toLowerCase() !== 'input') {
+                imageInput.click();
+            }
+        });
+
+        // --- إظهار شاشة التحميل عند إرسال النموذج ---
+        const productForm = document.querySelector('.product-form');
+        if (productForm) {
+            productForm.addEventListener('submit', function() {
+                const loadingOverlay = document.getElementById('loadingOverlay');
+             
+            });
+        }
+    });
+
+    // --- دالة إزالة الصورة المختارة (تبقى خارج DOMContentLoaded) ---
+    function removeImage() {
+        document.getElementById('image').value = '';
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        previewContainer.style.display = 'none';
+        previewContainer.innerHTML = '';
+        document.getElementById('fileUploadArea').style.display = 'block';
+    }
+</script>
+</script>
+        </div>
+    </main>

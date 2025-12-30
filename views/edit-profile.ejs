@@ -1,0 +1,227 @@
+<main class="main-content">
+        <div class="container">
+            <div class="edit-profile-container fade-in">
+                <div class="page-header">
+                    <h1 class="page-title">✏️ تعديل الملف الشخصي</h1>
+                    <p class="page-subtitle">قم بتحديث معلوماتك الشخصية</p>
+                </div>
+                
+                <% if (typeof error !== 'undefined' && error) { %>
+                    <div class="alert alert-error">
+                        <i class="alert-icon">⚠️</i>
+                        <span><%= error %></span>
+                    </div>
+                <% } %>
+                
+                <% if (typeof success !== 'undefined' && success) { %>
+                    <div class="alert alert-success">
+                        <i class="alert-icon">✅</i>
+                        <span><%= success %></span>
+                    </div>
+                <% } %>
+                
+                <form action="/edit-profile" method="POST" enctype="multipart/form-data" class="edit-profile-form">
+                    <!-- صورة الملف الشخصي -->
+                    <div class="form-section">
+                        <h3 class="section-title">📷 الصورة الشخصية</h3>
+                        <div class="avatar-upload-section">
+                            <div class="current-avatar">
+                                <% if (user.avatar) { %>
+                                    <img src="/uploads/<%= user.avatar %>" alt="صورة شخصية" class="avatar-preview" id="avatarPreview">
+                                <% } else { %>
+                                    <div class="avatar-placeholder" id="avatarPreview">
+                                        <i class="avatar-icon">👤</i>
+                                    </div>
+                                <% } %>
+                            </div>
+                            <div class="avatar-upload-controls">
+                                <input type="file" id="avatar" name="avatar" accept="image/*" class="file-input">
+                                <label for="avatar" class="btn btn-secondary">
+                                    📁 اختيار صورة جديدة
+                                </label>
+                                <% if (user.avatar) { %>
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="removeAvatar()">
+                                        🗑️ إزالة الصورة
+                                    </button>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- المعلومات الأساسية -->
+                    <div class="form-section">
+                        <h3 class="section-title">👤 المعلومات الأساسية</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="name" class="form-label">الاسم الكامل</label>
+                                <input type="text" id="name" name="name" value="<%= user.name %>" class="form-input" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="phone" class="form-label">رقم الهاتف</label>
+                                <div style="position: relative;">
+                                    <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #666; font-size: 14px; z-index: 1;">+968</span>
+                                    <input type="tel" id="phone" name="phone" value="<%= user.phone %>" class="form-input" required readonly style="padding-left: 60px; background-color: #f8f9fa;">
+                                </div>
+                                <small class="form-help">لا يمكن تغيير رقم الهاتف</small>
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="email" class="form-label">البريد الإلكتروني</label>
+                                <input type="email" id="email" name="email" value="<%= user.email || '' %>" class="form-input" placeholder="example@email.com">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- النبذة الشخصية -->
+                    <div class="form-section">
+                        <h3 class="section-title">📝 النبذة الشخصية</h3>
+                        <div class="form-group">
+                            <label for="bio" class="form-label">نبذة عنك</label>
+                            <textarea id="bio" name="bio" class="form-textarea" rows="4" maxlength="500" placeholder="اكتب نبذة مختصرة عن نفسك أو عن متجرك..."><%= user.bio || '' %></textarea>
+                            <div class="char-counter">
+                                <span id="bioCounter">0</span>/500 حرف
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- تغيير كلمة المرور -->
+                    <div class="form-section">
+                        <h3 class="section-title">🔒 تغيير كلمة المرور</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="currentPassword" class="form-label">كلمة المرور الحالية</label>
+                                <input type="password" id="currentPassword" name="currentPassword" class="form-input" placeholder="اتركه فارغاً إذا لم ترد تغيير كلمة المرور">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="newPassword" class="form-label">كلمة المرور الجديدة</label>
+                                <input type="password" id="newPassword" name="newPassword" class="form-input" placeholder="كلمة المرور الجديدة">
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="confirmPassword" class="form-label">تأكيد كلمة المرور الجديدة</label>
+                                <input type="password" id="confirmPassword" name="confirmPassword" class="form-input" placeholder="أعد كتابة كلمة المرور الجديدة">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- أزرار الحفظ والإلغاء -->
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            💾 حفظ التغييرات
+                        </button>
+                        <a href="/profile" class="btn btn-outline btn-lg">
+                            ❌ إلغاء
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+    
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2024 دكان الحجور. جميع الحقوق محفوظة.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // عداد الأحرف للنبذة الشخصية
+            const bioTextarea = document.getElementById('bio');
+            const bioCounter = document.getElementById('bioCounter');
+            
+            function updateBioCounter() {
+                const length = bioTextarea.value.length;
+                bioCounter.textContent = length;
+                
+                if (length > 450) {
+                    bioCounter.style.color = '#e74c3c';
+                } else if (length > 400) {
+                    bioCounter.style.color = '#f39c12';
+                } else {
+                    bioCounter.style.color = '#27ae60';
+                }
+            }
+            
+            bioTextarea.addEventListener('input', updateBioCounter);
+            updateBioCounter(); // تحديث العداد عند تحميل الصفحة
+            
+            // معاينة الصورة المختارة
+            const avatarInput = document.getElementById('avatar');
+            const avatarPreview = document.getElementById('avatarPreview');
+            
+            avatarInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        avatarPreview.innerHTML = `<img src="${e.target.result}" alt="معاينة الصورة" class="avatar-preview">`;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // التحقق من تطابق كلمات المرور
+            const newPassword = document.getElementById('newPassword');
+            const confirmPassword = document.getElementById('confirmPassword');
+            const currentPassword = document.getElementById('currentPassword');
+            
+            function validatePasswords() {
+                if (newPassword.value && confirmPassword.value) {
+                    if (newPassword.value !== confirmPassword.value) {
+                        confirmPassword.setCustomValidity('كلمات المرور غير متطابقة');
+                    } else {
+                        confirmPassword.setCustomValidity('');
+                    }
+                }
+                
+                // التحقق من وجود كلمة المرور الحالية عند إدخال كلمة مرور جديدة
+                if (newPassword.value && !currentPassword.value) {
+                    currentPassword.setCustomValidity('يجب إدخال كلمة المرور الحالية');
+                } else {
+                    currentPassword.setCustomValidity('');
+                }
+            }
+            
+            newPassword.addEventListener('input', validatePasswords);
+            confirmPassword.addEventListener('input', validatePasswords);
+            currentPassword.addEventListener('input', validatePasswords);
+            
+            // تنسيق رقم الهاتف
+            const phoneInput = document.getElementById('phone');
+            phoneInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.startsWith('966')) {
+                    value = value.substring(3);
+                }
+                if (value.length > 0) {
+                    value = '+966 ' + value;
+                }
+                e.target.value = value;
+            });
+        });
+        
+        // إزالة الصورة الشخصية
+        function removeAvatar() {
+            if (confirm('هل أنت متأكد من إزالة الصورة الشخصية؟')) {
+                const avatarPreview = document.getElementById('avatarPreview');
+                avatarPreview.innerHTML = '<i class="avatar-icon">👤</i>';
+                avatarPreview.className = 'avatar-placeholder';
+                
+                // إضافة حقل مخفي لإشارة إزالة الصورة
+                const form = document.querySelector('.edit-profile-form');
+                let removeInput = document.getElementById('removeAvatar');
+                if (!removeInput) {
+                    removeInput = document.createElement('input');
+                    removeInput.type = 'hidden';
+                    removeInput.name = 'removeAvatar';
+                    removeInput.id = 'removeAvatar';
+                    form.appendChild(removeInput);
+                }
+                removeInput.value = 'true';
+            }
+        }
+    </script>
+</main>
