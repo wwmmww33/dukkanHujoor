@@ -1002,9 +1002,14 @@ app.get('/jam3ya/dashboard', requireJam3yaAdmin, (req, res) => {
                         };
                     }).reverse(); // Reverse to show newest first
 
-                    // Identify Unpaid Members for Current Year
+                    // Identify Unpaid Members for Current Year & Prepare Payment Report by Years
                     const currentYear = new Date().getFullYear().toString();
                     const paidMemberCodes = new Set();
+                    
+                    // Logic for Payment Report
+                    const paymentReport = {}; // { memberCode: { '2023': amount, '2024': amount } }
+                    const yearsSet = new Set(['2023', '2024', currentYear]); // Start with requested years
+
                     transactions.forEach(t => {
                         // Ensure date is string YYYY-MM-DD
                         let dateStr = t.date;
@@ -1030,7 +1035,42 @@ app.get('/jam3ya/dashboard', requireJam3yaAdmin, (req, res) => {
                             const yearsInDetails = details.match(/\b20\d{2}\b/g);
                             
                             let isPaidForCurrentYear = false;
+                            
+                            // Determine which years this transaction covers
+                            let coveredYears = [];
+                            if (yearsInDetails && yearsInDetails.length > 0) {
+                                coveredYears = yearsInDetails;
+                            } else {
+                                // Fallback to transaction date year if no years in details
+                                if (dateStr) {
+                                    coveredYears = [dateStr.split('-')[0]];
+                                }
+                            }
 
+                            // Update Payment Report
+                            if (!paymentReport[item]) paymentReport[item] = {};
+                            coveredYears.forEach(year => {
+                                if (year >= '2023') { // Only track from 2023 onwards as requested/relevant
+                                    yearsSet.add(year);
+                                    if (!paymentReport[item][year]) paymentReport[item][year] = 0;
+                                    // If multiple years in details, split amount? Or attribute full amount to each?
+                                    // Usually amount covers one year unless specified.
+                                    // Assumption: If details say "2024, 2025" and amount is 24, it likely means 12 for each.
+                                    // BUT simplest approach: Attribute full amount to each year listed, or just mark as paid.
+                                    // User wants "Amount he paid". If he paid 12 and details say "2024", he paid 12 for 2024.
+                                    // If details "2024, 2025", he paid for both. Splitting is risky without knowing rules.
+                                    // Better approach: If multiple years, duplicate the amount entry? 
+                                    // No, let's assume one transaction = one year usually. 
+                                    // If details has multiple years, it's ambiguous. 
+                                    // Let's assume the amount is total. We will just ADD the transaction amount to that year's bucket.
+                                    // If multiple years are listed, we add the FULL amount to EACH year? No, that inflates total.
+                                    // Let's divide the amount by number of years if multiple years are detected.
+                                    const amountPerYear = t.amount / coveredYears.length;
+                                    paymentReport[item][year] += amountPerYear;
+                                }
+                            });
+
+                            // Logic for Unpaid List (Current Year)
                             if (yearsInDetails && yearsInDetails.length > 0) {
                                 // If details contain years, strict check against currentYear
                                 if (yearsInDetails.includes(currentYear)) {
@@ -1049,6 +1089,20 @@ app.get('/jam3ya/dashboard', requireJam3yaAdmin, (req, res) => {
                                 if (item === '1330') {
                                     console.log(`[DEBUG] Member 1330 Marked as PAID. Source: ${yearsInDetails ? 'Details (' + yearsInDetails + ')' : 'Date (' + dateStr + ')'}`);
                                 }
+                            }
+                        }
+                    });
+
+                    // Prepare sorted years array for the view
+                    const sortedYears = Array.from(yearsSet).sort();
+
+                    // Calculate Yearly Totals
+                    const yearlyTotals = {};
+                    sortedYears.forEach(year => yearlyTotals[year] = 0);
+                    Object.values(paymentReport).forEach(memberPayments => {
+                        for (const [year, amount] of Object.entries(memberPayments)) {
+                            if (yearlyTotals[year] !== undefined) {
+                                yearlyTotals[year] += amount;
                             }
                         }
                     });
@@ -1075,6 +1129,9 @@ app.get('/jam3ya/dashboard', requireJam3yaAdmin, (req, res) => {
                         activeSubjects,
                         transactions: processedTransactions, 
                         unpaidMembers, // Pass to view
+                        paymentReport, // Pass to view
+                        yearlyTotals,  // Pass to view
+                        sortedYears,   // Pass to view
                         mainData,
                         adminName, 
                         layout: false 
@@ -2235,6 +2292,16 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// Add CSP middleware globally before starting the server
+app.use((req, res, next) => {
+    res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' data: https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' http://localhost:* ws://localhost:*; frame-src 'self';"
+    );
+    next();
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Visit http://localhost:${PORT}`);

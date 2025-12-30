@@ -118,16 +118,23 @@
         .transactions-table tbody tr:nth-child(even),
         .members-table tbody tr:nth-child(even),
         .unpaid-table tbody tr:nth-child(even),
-        .subjects-table tbody tr:nth-child(even) {
+        .subjects-table tbody tr:nth-child(even),
+        .payment-report-table tbody tr:nth-child(even) {
             background-color: #f9fafb;
         }
         /* Hover effect */
         .transactions-table tbody tr:hover,
         .members-table tbody tr:hover,
         .unpaid-table tbody tr:hover,
-        .subjects-table tbody tr:hover {
+        .subjects-table tbody tr:hover,
+        .payment-report-table tbody tr:hover {
             background-color: #e9ecef;
         }
+
+        .payment-report-table { min-width: 1000px; }
+        .payment-report-table th:nth-child(1), .payment-report-table td:nth-child(1) { width: 60px; text-align: center; padding: 8px 4px; }
+        .payment-report-table th:nth-child(2), .payment-report-table td:nth-child(2) { width: 160px; padding: 8px; }
+        .payment-report-table th:nth-child(n+3), .payment-report-table td:nth-child(n+3) { width: 60px; text-align: center; white-space: nowrap; padding: 8px 2px; }
     </style>
 </head>
 <body>
@@ -151,6 +158,7 @@
             <button class="tab-btn active" onclick="openTab('transactions')"><i class="fa-solid fa-list" style="margin-left:8px;"></i>سجل العمليات</button>
             <button class="tab-btn" onclick="openTab('subjects')"><i class="fa-solid fa-tags" style="margin-left:8px;"></i>المواضيع</button>
             <button class="tab-btn" onclick="openTab('unpaid')"><i class="fa-solid fa-clock" style="margin-left:8px;"></i>المتأخرين عن الدفع</button>
+            <button class="tab-btn" onclick="openTab('paymentReport')"><i class="fa-solid fa-calendar-check" style="margin-left:8px;"></i>تقرير الدفع بالسنوات</button>
         </div>
 
         <!-- Members Tab -->
@@ -416,7 +424,6 @@
             </table>
             </div>
         </div>
-    </div>
 
     <!-- Export Mode Modal -->
     <div id="exportModeModal" class="modal">
@@ -522,6 +529,69 @@
                 </table>
             </div>
         </div>
+    </div>
+
+    <!-- Payment Report Tab -->
+    <div id="paymentReport" class="tab-content">
+        <h3>تقرير الدفع بالسنوات</h3>
+        
+        <!-- Summary Table for Yearly Totals -->
+        <div class="table-container" style="margin-bottom: 20px;">
+            <h4 style="padding: 0 15px; margin-bottom: 10px; margin-top: 10px; color: var(--primary);">ملخص التحصيل السنوي</h4>
+            <table style="min-width: auto; width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="text-align: center; background: #e9ecef; color: #495057;">السنة</th>
+                        <th style="text-align: center; background: #e9ecef; color: #495057;">إجمالي التحصيل</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% sortedYears.forEach(year => { 
+                        const total = yearlyTotals[year] || 0;
+                    %>
+                        <tr>
+                            <td style="text-align: center; font-weight: bold;"><%= year %></td>
+                            <td style="text-align: center; color: #155724; font-weight: bold;"><%= total.toLocaleString('en-US') %></td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-container">
+            <table class="table-fit payment-report-table" id="paymentReportTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortPaymentReport(0)" style="cursor: pointer; width: 100px;">رقم العضو <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <th onclick="sortPaymentReport(1)" style="cursor: pointer; width: 250px;">الاسم <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <% sortedYears.forEach((year, idx) => { %>
+                            <th onclick="sortPaymentReport(<%= idx + 2 %>)" style="cursor: pointer; text-align: center;"><%= year %> <i class="fa-solid fa-sort sort-icon"></i></th>
+                        <% }) %>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% members.forEach(m => { %>
+                        <tr>
+                            <td style="font-weight: bold; color: #666; text-align: center;"><%= m.member_code %></td>
+                            <td>
+                                <a href="#" onclick="showMemberHistory('<%= m.member_code %>'); return false;" style="color: inherit; text-decoration: none; border-bottom: 1px dashed #999;">
+                                    <%= m.name %>
+                                </a>
+                            </td>
+                            <% sortedYears.forEach(year => { 
+                                const hasPaid = paymentReport[m.member_code] && paymentReport[m.member_code][year] !== undefined;
+                                const amount = hasPaid ? paymentReport[m.member_code][year] : 0;
+                            %>
+                                <td style="text-align: center; font-weight: bold; <%= hasPaid ? 'background-color: #d4edda; color: #155724;' : '' %>">
+                                    <%= hasPaid ? amount : '' %>
+                                </td>
+                            <% }) %>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
     </div>
 
     <!-- Add Subject Modal -->
@@ -692,7 +762,58 @@
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
+            // Find the button that called this function and activate it
+            // If called from onclick, event.target is the button (or icon inside)
+            // If called programmatically, we might need to handle it.
+            if (event && event.target) {
+                // If click was on icon, get parent button
+                let target = event.target;
+                if (target.tagName === 'I') target = target.parentElement;
+                target.classList.add('active');
+            }
+        }
+
+        // Generic Table Sorting
+        let currentSortColumn = -1;
+        let isAscending = true;
+
+        function sortPaymentReport(colIndex) {
+            const table = document.getElementById('paymentReportTable');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.rows);
+            const th = table.querySelectorAll('th')[colIndex];
+
+            // Toggle sort direction if clicking same column
+            if (currentSortColumn === colIndex) {
+                isAscending = !isAscending;
+            } else {
+                currentSortColumn = colIndex;
+                isAscending = true;
+            }
+
+            // Update icons
+            table.querySelectorAll('th i').forEach(icon => icon.className = 'fa-solid fa-sort sort-icon');
+            const icon = th.querySelector('i');
+            icon.className = isAscending ? 'fa-solid fa-sort-up sort-icon' : 'fa-solid fa-sort-down sort-icon';
+            table.querySelectorAll('th').forEach(h => h.style.color = '');
+            th.style.color = 'var(--secondary)';
+
+            rows.sort((a, b) => {
+                let cellA = a.cells[colIndex].innerText.trim();
+                let cellB = b.cells[colIndex].innerText.trim();
+
+                // Check if numeric
+                const numA = parseFloat(cellA);
+                const numB = parseFloat(cellB);
+
+                if (!isNaN(numA) && !isNaN(numB) && cellA !== '' && cellB !== '') {
+                    return isAscending ? numA - numB : numB - numA;
+                } else {
+                    return isAscending ? cellA.localeCompare(cellB, 'ar') : cellB.localeCompare(cellA, 'ar');
+                }
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
         }
 
         function showAddMemberModal() {
