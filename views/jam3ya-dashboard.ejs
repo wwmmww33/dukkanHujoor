@@ -6,26 +6,79 @@
     <title>لوحة تحكم الجمعية</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root { --primary: #2c3e50; --secondary: #27ae60; --danger: #c0392b; --light: #f8f9fa; --border: #dee2e6; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        :root { 
+            --primary: #2c3e50; 
+            --secondary: #27ae60; 
+            --danger: #c0392b; 
+            --light: #f8f9fa; 
+            --border: #dee2e6; 
+            --bg: #f8f9fa; 
+            --surface: #ffffff; 
+            --text: #333333; 
+            --text-muted: #666666;
+            --table-header: #f8f9fa; 
+            --table-stripe: #f9fafb;
+            --table-hover: #e9ecef;
+            --input-bg: #ffffff;
+            --input-text: #333333;
+            --purple: #8e44ad;
+            --bg-soft-primary: #eaf2f8;
+            --bg-soft-success: #e8f5e9;
+            --bg-soft-danger: #fdeaea;
+            --bg-soft-warning: #fff3cd;
+            --text-warning: #856404;
+            --text-success-dark: #155724;
+        }
+        [data-theme="dark"] { 
+            --primary: #3f9eff; 
+            --secondary: #34c759; 
+            --danger: #ff453a; 
+            --light: #121212; 
+            --border: #3a3a3c; 
+            --bg: #121212; 
+            --surface: #1e1e1e; 
+            --text: #e5e5e5; 
+            --text-muted: #a0a0a0;
+            --table-header: #2c2c2e; 
+            --table-stripe: #252527;
+            --table-hover: #3a3a3c;
+            --input-bg: #2c2c2e;
+            --input-text: #e5e5e5;
+            --purple: #bf5af2;
+            --bg-soft-primary: rgba(63, 158, 255, 0.15);
+            --bg-soft-success: rgba(52, 199, 89, 0.15);
+            --bg-soft-danger: rgba(255, 69, 58, 0.15);
+            --bg-soft-warning: rgba(255, 214, 10, 0.15);
+            --text-warning: #ffd60a;
+            --text-success-dark: #63e6be;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text); }
+        .text-success { color: var(--secondary) !important; }
+        .text-danger { color: var(--danger) !important; }
+        .text-muted { color: var(--text-muted) !important; }
+        .text-primary { color: var(--primary) !important; }
+        .bg-soft-success { background-color: var(--bg-soft-success) !important; }
+        .bg-soft-danger { background-color: var(--bg-soft-danger) !important; }
+        .bg-soft-warning { background-color: var(--bg-soft-warning) !important; }
+        .text-success-dark { color: var(--text-success-dark) !important; }
+        .container { max-width: 1200px; margin: 0 auto; background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
         h1 { margin: 0; color: var(--primary); font-size: 1.8rem; }
         .btn { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: background-color .2s ease, box-shadow .2s ease, color .2s ease; font-weight: 600; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-success { background: var(--secondary); color: white; }
         .btn-danger { background: var(--danger); color: white; }
-        .btn-outline { border: 1px solid var(--border); background: white; color: #666; }
+        .btn-outline { border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); }
         .btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         .btn-success:hover { background: #1f8f50; }
         .btn-danger:hover { background: #a83224; }
-        .btn-outline:hover { background: #f3f4f6; color: #333; }
+        .btn-outline:hover { background: var(--table-hover); color: var(--text); }
         .btn i { margin-left: 8px; }
         .header-actions { display: flex; gap: 12px; align-items: center; }
         .export-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 16px; width: 100%; }
         
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; flex-wrap: nowrap; align-items: flex-end; }
-        .tab-btn { padding: 10px 20px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 1rem; color: #666; flex: 0 0 auto; white-space: nowrap; }
+        .tab-btn { padding: 10px 20px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 1rem; color: var(--text-muted); flex: 0 0 auto; white-space: nowrap; }
         .tab-btn.active { color: var(--secondary); border-bottom-color: var(--secondary); font-weight: bold; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -33,22 +86,22 @@
 
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; text-align: right; border-bottom: 1px solid var(--border); }
-        th { background: #f8f9fa; color: var(--primary); }
+        th { background: var(--table-header); color: var(--primary); }
         
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--text); }
+        input, select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--input-text); }
         
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
-        .modal-content { background: white; padding: 30px; border-radius: 8px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+        .modal-content { background: var(--surface); padding: 30px; border-radius: 8px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; color: var(--text); }
         .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .close { cursor: pointer; font-size: 1.5rem; }
+        .close { cursor: pointer; font-size: 1.5rem; color: var(--text-muted); }
         
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: white; }
         .badge.success { background: var(--secondary); }
         .badge.danger { background: var(--danger); }
 
-        textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; resize: vertical; min-height: 80px; }
+        textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; resize: vertical; min-height: 80px; background-color: var(--input-bg); color: var(--input-text); }
         
         .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .checkbox-group input { width: auto; }
@@ -120,7 +173,7 @@
         .unpaid-table tbody tr:nth-child(even),
         .subjects-table tbody tr:nth-child(even),
         .payment-report-table tbody tr:nth-child(even) {
-            background-color: #f9fafb;
+            background-color: var(--table-stripe);
         }
         /* Hover effect */
         .transactions-table tbody tr:hover,
@@ -128,7 +181,7 @@
         .unpaid-table tbody tr:hover,
         .subjects-table tbody tr:hover,
         .payment-report-table tbody tr:hover {
-            background-color: #e9ecef;
+            background-color: var(--table-hover);
         }
 
         .payment-report-table { min-width: 1000px; }
@@ -142,11 +195,12 @@
         <header>
             <div>
                 <h1>لوحة تحكم جمعية الخطوة الأهلية</h1>
-                <div style="color: #666; margin-top: 5px; font-weight: bold;">
+                <div style="color: var(--text-muted); margin-top: 5px; font-weight: bold;">
                     مرحباً، <%= typeof adminName !== 'undefined' ? adminName : 'مدير النظام' %>
                 </div>
             </div>
             <div class="header-actions">
+                <button id="themeToggle" class="btn btn-outline" onclick="toggleTheme()">🌓 الوضع</button>
                 <button onclick="showAddTransactionModal()" class="btn btn-success"><i class="fa-solid fa-plus"></i>تسجيل عملية مالية</button>
                 <a href="/jam3ya" class="btn btn-outline"><i class="fa-solid fa-eye"></i>عرض الموقع</a>
                 <a href="/jam3ya/logout" class="btn btn-danger"><i class="fa-solid fa-right-from-bracket"></i>تسجيل خروج</a>
@@ -182,18 +236,18 @@
                 <table style="min-width: auto; width: 100%;">
                     <thead>
                         <tr>
-                            <th style="text-align: center; background: #e9ecef; color: #495057;">عدد الأعضاء</th>
-                            <th style="text-align: center; background: #e9ecef; color: #495057;">المسجلون بالبريد</th>
-                            <th style="text-align: center; background: #e9ecef; color: #495057;">النشطون</th>
-                            <th style="text-align: center; background: #e9ecef; color: #495057;">غير النشطين</th>
+                            <th style="text-align: center; background: var(--table-header); color: var(--text);">عدد الأعضاء</th>
+                            <th style="text-align: center; background: var(--table-header); color: var(--text);">المسجلون بالبريد</th>
+                            <th style="text-align: center; background: var(--table-header); color: var(--text);">النشطون</th>
+                            <th style="text-align: center; background: var(--table-header); color: var(--text);">غير النشطين</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td style="text-align: center; font-weight: bold;"><%= totalMembers %></td>
                             <td style="text-align: center; font-weight: bold;"><%= emailCount %></td>
-                            <td style="text-align: center; font-weight: bold; color: #27ae60;"><%= activeCount %></td>
-                            <td style="text-align: center; font-weight: bold; color: #c0392b;"><%= inactiveCount %></td>
+                            <td style="text-align: center; font-weight: bold; color: var(--secondary);"><%= activeCount %></td>
+                            <td style="text-align: center; font-weight: bold; color: var(--danger);"><%= inactiveCount %></td>
                         </tr>
                     </tbody>
                 </table>
@@ -257,7 +311,7 @@
                                 <span class="badge danger">معطل</span>
                             <% } %>
                             <% if (m.is_admin == 1) { %>
-                                <span class="badge" style="background: #8e44ad;">مدير</span>
+                                <span class="badge" style="background: var(--purple);">مدير</span>
                             <% } %>
                         </td>
                         <% if (hasNotes) { %>
@@ -284,24 +338,24 @@
                 <table style="min-width: auto; width: 100%;">
                     <thead>
                         <tr>
-                            <th style="text-align: center; background: #eaf2f8; color: #2c3e50;">الرصيد الابتدائي</th>
-                            <th style="text-align: center; background: #e8f5e9; color: #27ae60;">مجموع الإيداعات</th>
-                            <th style="text-align: center; background: #fdeaea; color: #c0392b;">مجموع المصروفات</th>
-                            <th style="text-align: center; background: #eaf2f8; color: #2c3e50;">الرصيد الحالي</th>
+                            <th style="text-align: center; background: var(--bg-soft-primary); color: var(--primary);">الرصيد الابتدائي</th>
+                            <th style="text-align: center; background: var(--bg-soft-success); color: var(--secondary);">مجموع الإيداعات</th>
+                            <th style="text-align: center; background: var(--bg-soft-danger); color: var(--danger);">مجموع المصروفات</th>
+                            <th style="text-align: center; background: var(--bg-soft-primary); color: var(--primary);">الرصيد الحالي</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #2c3e50;">
+                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--primary);">
                                 <%= mainData.initialBalance.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
                             </td>
-                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #27ae60;">
+                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--secondary);">
                                 <%= mainData.totalIncome.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
                             </td>
-                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #c0392b;">
+                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--danger);">
                                 <%= mainData.totalExpense.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
                             </td>
-                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #2c3e50;">
+                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--primary);">
                                 <%= mainData.currentBalance.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
                             </td>
                         </tr>
@@ -334,25 +388,25 @@
                 <tbody>
                     <% transactions.forEach(t => { %>
                     <tr>
-                        <td style="font-weight: bold; color: #666;"><%= t.id %></td>
+                        <td style="font-weight: bold; color: var(--text-muted);"><%= t.id %></td>
                         <td><%= t.date ? new Date(t.date).toLocaleDateString('en-GB') : '-' %></td>
                         <td><%= t.subject %></td>
                         <td>
                             <% if (t.isMember) { %>
                                 <a href="#" onclick="showMemberHistory('<%= t.item %>'); return false;" style="color: var(--primary); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--primary);">
-                                    <%= t.displayItem %> <span style="font-size: 0.8em; color: #666;">(<%= t.item %>)</span>
+                                    <%= t.displayItem %> <span style="font-size: 0.8em; color: var(--text-muted);">(<%= t.item %>)</span>
                                 </a>
                             <% } else { %>
                                 <%= t.displayItem %>
                             <% } %>
                         </td>
-                        <td dir="ltr" style="text-align: right; font-weight: bold; color: <%= t.amount >= 0 ? '#27ae60' : '#c0392b' %>;">
+                        <td dir="ltr" class="<%= t.amount >= 0 ? 'text-success' : 'text-danger' %>" style="text-align: right; font-weight: bold;">
                             <%= t.amount %>
                             <% if (t.is_approved === 0) { %>
-                                <span class="badge" style="background:#fff3cd;color:#856404;margin-right:8px;">قيد الموافقة</span>
+                                <span class="badge bg-soft-warning" style="color: var(--text-warning); margin-right:8px;">قيد الموافقة</span>
                             <% } %>
                         </td>
-                        <td dir="ltr" style="text-align: right; font-weight: bold; color: #2c3e50;">
+                        <td dir="ltr" style="text-align: right; font-weight: bold; color: var(--primary);">
                             <%= t.balance %>
                         </td>
                         <td><%= t.details || '-' %></td>
@@ -391,7 +445,7 @@
                 <tbody>
                     <% subjects.forEach(s => { %>
                     <tr>
-                        <td style="font-weight: bold; color: #666;"><%= s.id %></td>
+                        <td style="font-weight: bold; color: var(--text-muted);"><%= s.id %></td>
                         <td><%= s.name %></td>
                         <td>
                             <button class="btn btn-warning" onclick="editSubject('<%= s.id %>', '<%= s.name %>')">تعديل</button>
@@ -408,7 +462,7 @@
         <div id="unpaid" class="tab-content">
             <h3>إدارة التذكيرات والمساهمات المتأخرة</h3>
             
-            <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
+            <div style="background: var(--surface); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
                 <h4>نموذج رسالة الواتساب</h4>
                 <div class="form-group">
                     <label>نص الرسالة (استخدم {{اللقب}} لإدراج لقب العضو أو اسمه الأول تلقائياً)</label>
@@ -482,7 +536,7 @@
                 <input type="hidden" name="member_code" id="memberCode">
                 <div class="form-group" id="memberCodeDisplayGroup" style="display: none;">
                     <label>رقم العضو</label>
-                    <div id="memberCodeDisplay" style="padding: 8px; background: #eee; border-radius: 4px;"></div>
+                    <div id="memberCodeDisplay" style="padding: 8px; background: var(--table-hover); border-radius: 4px;"></div>
                 </div>
                 <div class="form-group">
                     <label>الاسم</label>
@@ -512,7 +566,7 @@
 
                 <div class="checkbox-group">
                     <input type="checkbox" name="is_admin" id="memberIsAdmin">
-                    <label for="memberIsAdmin" style="margin:0; color: #8e44ad;">مدير نظام (له صلاحية دخول لوحة التحكم)</label>
+                    <label for="memberIsAdmin" style="margin:0; color: var(--purple);">مدير نظام (له صلاحية دخول لوحة التحكم)</label>
                 </div>
                 
                 <div class="form-group">
@@ -533,14 +587,14 @@
                 <span class="close" onclick="closeModal('memberHistoryModal')">&times;</span>
             </div>
             
-            <div style="margin-bottom: 20px; display: flex; gap: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+            <div style="margin-bottom: 20px; display: flex; gap: 20px; background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
                 <div>
                     <strong>إجمالي المساهمات:</strong>
-                    <span id="historyTotalIncome" style="color: #27ae60; font-weight: bold; font-size: 1.2rem;">0</span>
+                    <span id="historyTotalIncome" style="color: var(--secondary); font-weight: bold; font-size: 1.2rem;">0</span>
                 </div>
                 <div>
                     <strong>الرصيد الصافي:</strong>
-                    <span id="historyNetBalance" style="color: #2c3e50; font-weight: bold; font-size: 1.2rem;">0</span>
+                    <span id="historyNetBalance" style="color: var(--primary); font-weight: bold; font-size: 1.2rem;">0</span>
                 </div>
             </div>
 
@@ -572,8 +626,8 @@
             <table style="min-width: auto; width: 100%;">
                 <thead>
                     <tr>
-                        <th style="text-align: center; background: #e9ecef; color: #495057;">السنة</th>
-                        <th style="text-align: center; background: #e9ecef; color: #495057;">إجمالي التحصيل</th>
+                        <th style="text-align: center; background: var(--table-header); color: var(--text);">السنة</th>
+                        <th style="text-align: center; background: var(--table-header); color: var(--text);">إجمالي التحصيل</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -582,7 +636,7 @@
                     %>
                         <tr>
                             <td style="text-align: center; font-weight: bold;"><%= year %></td>
-                            <td style="text-align: center; color: #155724; font-weight: bold;"><%= total.toLocaleString('en-US') %></td>
+                            <td style="text-align: center; color: var(--text-success-dark); font-weight: bold;"><%= total.toLocaleString('en-US') %></td>
                         </tr>
                     <% }) %>
                 </tbody>
@@ -605,9 +659,9 @@
                         if (m.is_active == 0) return; // Skip inactive members
                     %>
                         <tr>
-                            <td style="font-weight: bold; color: #666; text-align: center;"><%= m.member_code %></td>
+                            <td style="font-weight: bold; color: var(--text-muted); text-align: center;"><%= m.member_code %></td>
                             <td>
-                                <a href="#" onclick="showMemberHistory('<%= m.member_code %>'); return false;" style="color: inherit; text-decoration: none; border-bottom: 1px dashed #999;">
+                                <a href="#" onclick="showMemberHistory('<%= m.member_code %>'); return false;" style="color: inherit; text-decoration: none; border-bottom: 1px dashed var(--text-muted);">
                                     <%= m.name %>
                                 </a>
                             </td>
@@ -615,7 +669,7 @@
                                 const hasPaid = paymentReport[m.member_code] && paymentReport[m.member_code][year] !== undefined;
                                 const amount = hasPaid ? paymentReport[m.member_code][year] : 0;
                             %>
-                                <td style="text-align: center; font-weight: bold; <%= hasPaid ? 'background-color: #d4edda; color: #155724;' : '' %>">
+                                <td class="<%= hasPaid ? 'bg-soft-success text-success-dark' : '' %>" style="text-align: center; font-weight: bold;">
                                     <%= hasPaid ? amount : '' %>
                                 </td>
                             <% }) %>
@@ -649,7 +703,7 @@
                             <td style="font-weight: bold; color: var(--secondary); white-space: nowrap;"><%= v.member_name || '-' %></td>
                             <td class="hide-on-mobile" style="direction: ltr; text-align: left;"><%= v.path %></td>
                             <td class="hide-on-mobile"><%= v.ip %></td>
-                            <td class="hide-on-mobile" style="font-size: 0.85rem; color: #666;"><%= v.user_agent.substring(0, 30) %>...</td>
+                            <td class="hide-on-mobile" style="font-size: 0.85rem; color: var(--text-muted);"><%= v.user_agent.substring(0, 30) %>...</td>
                         </tr>
                         <% }) %>
                     <% } else { %>
@@ -671,6 +725,14 @@
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            var themeToggle = document.getElementById('themeToggle');
+            var currentTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', currentTheme);
+            window.toggleTheme = function() {
+                var theme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                document.body.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+            };
             var cells = document.querySelectorAll('.visitor-time');
             cells.forEach(function(cell) {
                 var raw = cell.getAttribute('data-time');
@@ -721,7 +783,7 @@
                     <label>اسم الموضوع</label>
                     <input type="text" name="name" id="editSubjectName" required>
                 </div>
-                <div style="background-color: #fff3cd; color: #856404; padding: 10px; margin-bottom: 15px; border: 1px solid #ffeeba; border-radius: 4px;">
+                <div class="bg-soft-warning" style="color: var(--text-warning); padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 4px;">
                     <small>تنبيه: تعديل اسم الموضوع سيقوم بتحديث جميع العمليات القديمة المرتبطة به أيضاً.</small>
                 </div>
                 <button type="submit" class="btn btn-warning" style="width: 100%">حفظ التعديلات</button>
@@ -821,7 +883,7 @@
                     amountCell.dir = 'ltr';
                     amountCell.style.textAlign = 'right';
                     amountCell.style.fontWeight = 'bold';
-                    amountCell.style.color = t.amount >= 0 ? '#27ae60' : '#c0392b';
+                    amountCell.className = t.amount >= 0 ? 'text-success' : 'text-danger';
                     tr.appendChild(amountCell);
 
                     const detailsCell = document.createElement('td');
