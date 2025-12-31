@@ -167,6 +167,33 @@
                 <h3>قائمة الأعضاء</h3>
                 <button class="btn btn-success" onclick="showAddMemberModal()">+ إضافة عضو</button>
             </div>
+            <%
+                const totalMembers = Array.isArray(members) ? members.length : 0;
+                const emailCount = Array.isArray(members) ? members.filter(m => (m.email || '').trim() !== '').length : 0;
+                const activeCount = Array.isArray(members) ? members.filter(m => (m.is_active == 1 || m.is_active == null)).length : 0;
+                const inactiveCount = Array.isArray(members) ? members.filter(m => (m.is_active == 0)).length : 0;
+            %>
+            <div class="table-container" style="margin-bottom: 20px;">
+                <h3 style="padding: 0 15px; margin-bottom: 10px; color: var(--primary);">إحصائيات الأعضاء</h3>
+                <table style="min-width: auto; width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; background: #e9ecef; color: #495057;">عدد الأعضاء</th>
+                            <th style="text-align: center; background: #e9ecef; color: #495057;">المسجلون بالبريد</th>
+                            <th style="text-align: center; background: #e9ecef; color: #495057;">النشطون</th>
+                            <th style="text-align: center; background: #e9ecef; color: #495057;">غير النشطين</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="text-align: center; font-weight: bold;"><%= totalMembers %></td>
+                            <td style="text-align: center; font-weight: bold;"><%= emailCount %></td>
+                            <td style="text-align: center; font-weight: bold; color: #27ae60;"><%= activeCount %></td>
+                            <td style="text-align: center; font-weight: bold; color: #c0392b;"><%= inactiveCount %></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
             <% 
                 const hasNotes = members && members.some(m => m.notes && m.notes !== '-' && m.notes.trim() !== '');
             %>
