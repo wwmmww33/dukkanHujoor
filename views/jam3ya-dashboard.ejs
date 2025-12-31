@@ -642,14 +642,10 @@
                 </thead>
                 <tbody>
                     <% if (typeof visitors !== 'undefined' && visitors.length > 0) { %>
-                        <% visitors.forEach((v, index) => { 
-                             // Parse date for better display
-                             const d = new Date(v.date);
-                             const dateStr = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US');
-                        %>
+                        <% visitors.forEach((v, index) => { %>
                         <tr>
                             <td><%= index + 1 %></td>
-                            <td style="direction: ltr; text-align: center; white-space: nowrap;"><%= dateStr %></td>
+                            <td class="visitor-time" data-time="<%= v.date %>" style="direction: ltr; text-align: center; white-space: nowrap;"><%= v.date %></td>
                             <td style="font-weight: bold; color: var(--secondary); white-space: nowrap;"><%= v.member_name || '-' %></td>
                             <td class="hide-on-mobile" style="direction: ltr; text-align: left;"><%= v.path %></td>
                             <td class="hide-on-mobile"><%= v.ip %></td>
@@ -673,6 +669,26 @@
         </style>
     </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var cells = document.querySelectorAll('.visitor-time');
+            cells.forEach(function(cell) {
+                var raw = cell.getAttribute('data-time');
+                if (!raw) return;
+                var d;
+                if (raw.endsWith('Z')) {
+                    d = new Date(raw);
+                } else if (raw.includes('T')) {
+                    d = new Date(raw);
+                } else {
+                    d = new Date(raw.replace(' ', 'T'));
+                }
+                if (d && !isNaN(d.getTime())) {
+                    cell.textContent = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US');
+                }
+            });
+        });
+    </script>
 
     <!-- Add Subject Modal -->
     <div id="subjectModal" class="modal">
@@ -1468,5 +1484,12 @@
             </form>
         </div>
     </div>
+    <style>
+        @media (max-width: 768px) {
+            .hide-on-mobile {
+                display: none;
+            }
+        }
+    </style>
 </body>
 </html>
