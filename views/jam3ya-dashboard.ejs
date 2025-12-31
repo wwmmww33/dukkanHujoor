@@ -162,6 +162,7 @@
             <button class="tab-btn" onclick="openTab('subjects')"><i class="fa-solid fa-tags" style="margin-left:8px;"></i>المواضيع</button>
             <button class="tab-btn" onclick="openTab('unpaid')"><i class="fa-solid fa-clock" style="margin-left:8px;"></i>المتأخرين عن الدفع</button>
             <button class="tab-btn" onclick="openTab('paymentReport')"><i class="fa-solid fa-calendar-check" style="margin-left:8px;"></i>تقرير الدفع بالسنوات</button>
+            <button class="tab-btn" onclick="openTab('visitors')"><i class="fa-solid fa-globe" style="margin-left:8px;"></i>سجل الزوار</button>
         </div>
 
         <!-- Members Tab -->
@@ -600,7 +601,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <% members.forEach(m => { %>
+                    <% members.forEach(m => { 
+                        if (m.is_active == 0) return; // Skip inactive members
+                    %>
                         <tr>
                             <td style="font-weight: bold; color: #666; text-align: center;"><%= m.member_code %></td>
                             <td>
@@ -621,6 +624,53 @@
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <div id="visitors" class="tab-content">
+        <h3>سجل زوار الموقع (آخر 200 زيارة)</h3>
+        <div class="table-container" style="overflow-x: auto;">
+            <table class="table-fit" style="width: 100%; min-width: 600px;">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>التاريخ</th>
+                        <th>الاسم</th>
+                        <th class="hide-on-mobile">الصفحة</th>
+                        <th class="hide-on-mobile">IP</th>
+                        <th class="hide-on-mobile">المتصفح</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (typeof visitors !== 'undefined' && visitors.length > 0) { %>
+                        <% visitors.forEach((v, index) => { 
+                             // Parse date for better display
+                             const d = new Date(v.date);
+                             const dateStr = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US');
+                        %>
+                        <tr>
+                            <td><%= index + 1 %></td>
+                            <td style="direction: ltr; text-align: center; white-space: nowrap;"><%= dateStr %></td>
+                            <td style="font-weight: bold; color: var(--secondary); white-space: nowrap;"><%= v.member_name || '-' %></td>
+                            <td class="hide-on-mobile" style="direction: ltr; text-align: left;"><%= v.path %></td>
+                            <td class="hide-on-mobile"><%= v.ip %></td>
+                            <td class="hide-on-mobile" style="font-size: 0.85rem; color: #666;"><%= v.user_agent.substring(0, 30) %>...</td>
+                        </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="6" style="text-align: center;">لا توجد سجلات زوار حتى الآن</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+        <style>
+            @media (max-width: 768px) {
+                .hide-on-mobile {
+                    display: none;
+                }
+            }
+        </style>
     </div>
     </div>
 
@@ -1028,7 +1078,63 @@
             if (savedTemplate) {
                 document.getElementById('whatsappTemplate').value = savedTemplate;
             }
+
+            // Tab handling from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+            if (tab) {
+                // Try to find button with this tab name
+                const tabBtn = document.querySelector(`.tab-btn[onclick*="'${tab}'"]`);
+                if (tabBtn) {
+                    openTab(tab);
+                    // Manually activate button since openTab relies on event
+                    setTimeout(() => {
+                        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                        tabBtn.classList.add('active');
+                    }, 0);
+                } else if (document.getElementById(tab)) {
+                    openTab(tab);
+                }
+            }
+
+            // Scroll restoration
+            const scrollPos = sessionStorage.getItem('jam3ya_scroll_pos');
+            if (scrollPos) {
+                window.scrollTo(0, parseInt(scrollPos));
+                sessionStorage.removeItem('jam3ya_scroll_pos'); 
+            }
         });
+
+        // Add listener to all forms to save scroll position
+        // We use delegation or just attach to existing forms
+        // Since some forms might be dynamic (created in JS), we should probably attach to document submit or just known forms.
+        // But most forms are static.
+        // Actually, the delete forms are created dynamically in JS.
+        // So we should handle the submit event at the window level or attach to functions.
+        
+        // Better: Hook into the submit events.
+        document.addEventListener('submit', function() {
+            sessionStorage.setItem('jam3ya_scroll_pos', window.scrollY);
+        });
+        
+        // Also for the dynamic forms created in confirmDelete functions
+        const originalConfirmDelete = confirmDelete;
+        confirmDelete = function(id) {
+            sessionStorage.setItem('jam3ya_scroll_pos', window.scrollY);
+            originalConfirmDelete(id);
+        }
+
+        const originalConfirmDeleteSubject = confirmDeleteSubject;
+        confirmDeleteSubject = function(id) {
+            sessionStorage.setItem('jam3ya_scroll_pos', window.scrollY);
+            originalConfirmDeleteSubject(id);
+        }
+
+        const originalConfirmDeleteTransaction = confirmDeleteTransaction;
+        confirmDeleteTransaction = function(id) {
+            sessionStorage.setItem('jam3ya_scroll_pos', window.scrollY);
+            originalConfirmDeleteTransaction(id);
+        }
 
         function showAddSubjectModal() {
             document.getElementById('subjectModal').style.display = 'flex';

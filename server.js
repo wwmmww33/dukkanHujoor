@@ -210,6 +210,12 @@ if (process.env.NODE_ENV === 'production') {
                 // Ensure approval workflow columns exist on transactions
                 jam3yaDb.run("ALTER TABLE transactions ADD COLUMN is_approved INTEGER DEFAULT 1", (err) => {});
                 jam3yaDb.run("ALTER TABLE transactions ADD COLUMN created_by_member INTEGER DEFAULT 0", (err) => {});
+                jam3yaDb.run("CREATE TABLE IF NOT EXISTS visitors (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, path TEXT, date TEXT, user_agent TEXT, member_name TEXT)", (err) => {
+                    // Try to add member_name column if table exists but column doesn't
+                    if (!err) {
+                        jam3yaDb.run("ALTER TABLE visitors ADD COLUMN member_name TEXT", (e) => {});
+                    }
+                });
             }
         });
     }
@@ -234,6 +240,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
+
 app.use(session({
     key: 'session_cookie_name',
     secret: process.env.SESSION_SECRET || 'a-very-strong-fallback-secret-key-for-dukan',
@@ -246,6 +253,43 @@ app.use(session({
         maxAge: 24 * 60 * 60 * 1000 // يوم واحد
     }
 }));
+
+// Visitor Tracking Middleware (Disabled - Logging only on successful login as per request)
+// app.use((req, res, next) => {
+//     // Log only specific entry points to reduce noise
+//     const allowedPaths = ['/', '/login', '/jam3ya'];
+//     
+//     if (jam3yaDb && req.method === 'GET' && allowedPaths.includes(req.path)) {
+//         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+//         const path = req.originalUrl;
+//         const ua = req.get('User-Agent') || '';
+//         const date = new Date().toISOString();
+//         const memberName = (req.session && req.session.jam3ya_member_name) || (req.session && req.session.jam3ya_admin ? 'مدير النظام' : null);
+//         
+//         // Simple bot filter (optional)
+//         if (!ua.includes('bot') && !ua.includes('spider') && !ua.includes('crawl')) {
+//              jam3yaDb.run("INSERT INTO visitors (ip, path, date, user_agent, member_name) VALUES (?, ?, ?, ?, ?)", [ip, path, date, ua, memberName], (err) => {
+//                  if (err) console.error("Visitor Log Error:", err.message);
+//              });
+//         }
+//     }
+//     next();
+// });
+
+// Helper for logging visitors
+const logVisitor = (req, memberName) => {
+    if (!jam3yaDb) return;
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const path = req.originalUrl; // Will show /jam3ya/login or /jam3ya/login/confirm
+    const ua = req.get('User-Agent') || '';
+    const date = new Date().toISOString();
+    
+    jam3yaDb.run("INSERT INTO visitors (ip, path, date, user_agent, member_name) VALUES (?, ?, ?, ?, ?)", 
+        [ip, path, date, ua, memberName], (err) => {
+        if (err) console.error("Visitor Log Error:", err.message);
+    });
+};
+
 app.use((req, res, next) => { res.locals.user = req.session.user || null; res.locals.query = req.query; next(); });
 
 const storage = multer.memoryStorage();
@@ -366,11 +410,20 @@ function getNextReminderDate() {
 
 function scheduleNextReminder() {
     const next = getNextReminderDate();
-    const delay = Math.max(0, next.getTime() - Date.now());
-    setTimeout(async () => {
-        await sendQuarterReminders();
-        scheduleNextReminder();
-    }, delay);
+    const now = Date.now();
+    const delay = Math.max(0, next.getTime() - now);
+    const MAX_DELAY = 2147483647; // ~24.8 days
+
+    if (delay > MAX_DELAY) {
+        console.log(`Next reminder is in future. Waiting...`);
+        setTimeout(scheduleNextReminder, MAX_DELAY);
+    } else {
+        console.log(`Scheduling reminder in ${delay}ms`);
+        setTimeout(async () => {
+            await sendQuarterReminders();
+            scheduleNextReminder();
+        }, delay);
+    }
 }
 
 if (process.env.JAM3YA_REMINDERS_ENABLED === 'true') {
@@ -622,6 +675,7 @@ app.post('/jam3ya/login', checkJam3yaDb, (req, res) => {
     const masterPass = process.env.JAM3YA_ADMIN_PASS || '123456';
     if (passcode === masterPass) {
         req.session.jam3ya_admin = true;
+        logVisitor(req, 'مدير النظام (Master)');
         return res.redirect('/jam3ya/dashboard');
     }
 
@@ -645,6 +699,9 @@ app.post('/jam3ya/login', checkJam3yaDb, (req, res) => {
             req.session.jam3ya_member_id = row.id;
             req.session.jam3ya_member_name = row.name;
             req.session.jam3ya_member_code = row.member_code; // Store member code for linking transactions
+            
+            logVisitor(req, row.name);
+
             req.session.save(() => {
                 res.redirect('/jam3ya');
             });
@@ -677,6 +734,8 @@ app.post('/jam3ya/login/confirm', (req, res) => {
         req.session.jam3ya_member_name = user.name;
         req.session.jam3ya_member_code = user.member_code;
     }
+
+    logVisitor(req, user.name + (role === 'admin' ? ' (Admin Access)' : ''));
 
     delete req.session.temp_jam3ya_user;
     req.session.save(() => {
@@ -905,10 +964,10 @@ const requireJam3yaMember = (req, res, next) => {
 app.post('/jam3ya/reminders/send', requireJam3yaAdmin, async (req, res) => {
     try {
         await sendQuarterReminders();
-        res.redirect('/jam3ya/dashboard');
+        res.redirect('/jam3ya/dashboard?tab=unpaid');
     } catch (e) {
         console.error("Manual reminder error:", e);
-        res.redirect('/jam3ya/dashboard');
+        res.redirect('/jam3ya/dashboard?tab=unpaid');
     }
 });
 
@@ -934,7 +993,7 @@ app.post('/jam3ya/transactions/add', requireJam3yaAdmin, (req, res) => {
                     console.error("Transaction Insert Error:", err);
                     return res.status(500).send("Error adding transaction");
                 }
-                res.redirect('/jam3ya/dashboard');
+                res.redirect('/jam3ya/dashboard?tab=transactions');
             }
         );
     };
@@ -1007,7 +1066,7 @@ app.post('/jam3ya/transactions/edit', requireJam3yaAdmin, (req, res) => {
                     console.error("Transaction Update Error:", err);
                     return res.status(500).send("Error updating transaction");
                 }
-                res.redirect('/jam3ya/dashboard');
+                res.redirect('/jam3ya/dashboard?tab=transactions');
             }
         );
     };
@@ -1032,7 +1091,7 @@ app.post('/jam3ya/transactions/delete', requireJam3yaAdmin, (req, res) => {
             console.error("Transaction Delete Error:", err);
             return res.status(500).send("Error deleting transaction");
         }
-        res.redirect('/jam3ya/dashboard');
+        res.redirect('/jam3ya/dashboard?tab=transactions');
     });
 });
 
@@ -1044,7 +1103,7 @@ app.post('/jam3ya/transactions/approve', requireJam3yaAdmin, (req, res) => {
             console.error("Transaction Approve Error:", err);
             return res.status(500).send("Error approving transaction");
         }
-        res.redirect('/jam3ya/dashboard');
+        res.redirect('/jam3ya/dashboard?tab=transactions');
     });
 });
 
@@ -1082,8 +1141,12 @@ app.get('/jam3ya/dashboard', requireJam3yaAdmin, (req, res) => {
                     // Calculate Summary Data
                     const mainData = processJam3yaData(transactions, 1240); // 1240 is global initial balance
 
-                    // Map member codes to names
-                    const memberMap = {};
+                    // Fetch Visitors
+                    jam3yaDb.all("SELECT * FROM visitors ORDER BY id DESC LIMIT 200", (err, visitors) => {
+                        if (err) visitors = [];
+                        
+                        // Map member codes to names
+                        const memberMap = {};
                     members.forEach(m => memberMap[m.member_code] = m.name);
 
                     // Process transactions to show real names and reverse for display (Newest First)
@@ -1200,7 +1263,17 @@ app.get('/jam3ya/dashboard', requireJam3yaAdmin, (req, res) => {
                     // Calculate Yearly Totals
                     const yearlyTotals = {};
                     sortedYears.forEach(year => yearlyTotals[year] = 0);
-                    Object.values(paymentReport).forEach(memberPayments => {
+
+                    // Identify inactive members to exclude from statistics
+                    const inactiveMemberCodes = new Set();
+                    members.forEach(m => {
+                        if (m.is_active == 0) inactiveMemberCodes.add(String(m.member_code).trim());
+                    });
+
+                    Object.entries(paymentReport).forEach(([memberCode, memberPayments]) => {
+                        // Skip inactive members from statistics
+                        if (inactiveMemberCodes.has(memberCode)) return;
+
                         for (const [year, amount] of Object.entries(memberPayments)) {
                             if (yearlyTotals[year] !== undefined) {
                                 yearlyTotals[year] += amount;
@@ -1235,9 +1308,11 @@ app.get('/jam3ya/dashboard', requireJam3yaAdmin, (req, res) => {
                         sortedYears,   // Pass to view
                         mainData,
                         adminName, 
+                        visitors, // Pass visitors
                         layout: false 
                     });
                 });
+            });
             });
         });
     });
@@ -1427,7 +1502,7 @@ app.post('/jam3ya/members/save', requireJam3yaAdmin, (req, res) => {
 
         jam3yaDb.run(sql, params, (err) => {
             if (err) console.error(err);
-            res.redirect('/jam3ya/dashboard');
+            res.redirect('/jam3ya/dashboard?tab=members');
         });
     } else {
         // Add
@@ -1444,7 +1519,7 @@ app.post('/jam3ya/members/save', requireJam3yaAdmin, (req, res) => {
             jam3yaDb.run("INSERT INTO members (member_code, name, nickname, phone, email, passcode, is_active, notes, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                 [member_code, name, nickname, phone, email, finalPasscode, isActiveVal, notes, isAdminVal], (err) => {
                 if (err) console.error(err);
-                res.redirect('/jam3ya/dashboard');
+                res.redirect('/jam3ya/dashboard?tab=members');
             });
         } else {
             // Find max member_code
@@ -1461,7 +1536,7 @@ app.post('/jam3ya/members/save', requireJam3yaAdmin, (req, res) => {
                 jam3yaDb.run("INSERT INTO members (member_code, name, nickname, phone, email, passcode, is_active, notes, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                     [nextCode.toString(), name, nickname, phone, email, finalPasscode, isActiveVal, notes, isAdminVal], (err) => {
                     if (err) console.error(err);
-                    res.redirect('/jam3ya/dashboard');
+                    res.redirect('/jam3ya/dashboard?tab=members');
                 });
             });
         }
@@ -1473,7 +1548,7 @@ app.post('/jam3ya/members/delete', requireJam3yaAdmin, (req, res) => {
     const { id } = req.body;
     jam3yaDb.run("DELETE FROM members WHERE id = ?", [id], (err) => {
         if (err) console.error(err);
-        res.redirect('/jam3ya/dashboard');
+        res.redirect('/jam3ya/dashboard?tab=members');
     });
 });
 
@@ -1482,7 +1557,7 @@ app.post('/jam3ya/subjects/add', requireJam3yaAdmin, (req, res) => {
     const { name } = req.body;
     jam3yaDb.run("INSERT INTO subjects (name) VALUES (?)", [name], (err) => {
         if (err) console.error(err);
-        res.redirect('/jam3ya/dashboard');
+        res.redirect('/jam3ya/dashboard?tab=subjects');
     });
 });
 
@@ -1502,10 +1577,10 @@ app.post('/jam3ya/subjects/edit', requireJam3yaAdmin, (req, res) => {
             jam3yaDb.run("UPDATE transactions SET subject = ? WHERE subject = ?", [name, old_name], (err) => {
                 if (err) console.error("Transactions Subject Update Error:", err);
                 // Continue even if transaction update fails (or just logs it)
-                res.redirect('/jam3ya/dashboard');
+                res.redirect('/jam3ya/dashboard?tab=subjects');
             });
         } else {
-            res.redirect('/jam3ya/dashboard');
+            res.redirect('/jam3ya/dashboard?tab=subjects');
         }
     });
 });
@@ -1515,7 +1590,7 @@ app.post('/jam3ya/subjects/delete', requireJam3yaAdmin, (req, res) => {
     const { id } = req.body;
     jam3yaDb.run("DELETE FROM subjects WHERE id = ?", [id], (err) => {
         if (err) console.error(err);
-        res.redirect('/jam3ya/dashboard');
+        res.redirect('/jam3ya/dashboard?tab=subjects');
     });
 });
 
@@ -1524,10 +1599,10 @@ app.post('/jam3ya/reminders/send', requireJam3yaAdmin, async (req, res) => {
     try {
         if (!jam3yaDb) throw new Error("Database unavailable");
         await sendQuarterReminders();
-        res.redirect('/jam3ya/dashboard?success=reminders_started');
+        res.redirect('/jam3ya/dashboard?success=reminders_started&tab=unpaid');
     } catch (err) {
         console.error("Manual Reminder Error:", err);
-        res.redirect('/jam3ya/dashboard?error=reminder_failed');
+        res.redirect('/jam3ya/dashboard?error=reminder_failed&tab=unpaid');
     }
 });
 

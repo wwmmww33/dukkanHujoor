@@ -48,6 +48,23 @@ class Jam3yaMySQLAdapter {
                 } catch (e) {
                     console.log("Schema update skipped or failed (might be already updated):", e.message);
                 }
+
+                // Ensure visitors table exists
+                try {
+                    await this.pool.query(`
+                        CREATE TABLE IF NOT EXISTS visitors (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            ip VARCHAR(45) NOT NULL,
+                            path TEXT NOT NULL,
+                            date VARCHAR(50) NOT NULL,
+                            user_agent TEXT,
+                            member_name VARCHAR(255) DEFAULT NULL
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                    `);
+                    console.log("Visitors table check/creation completed");
+                } catch (e) {
+                    console.error("Visitors table creation failed:", e.message);
+                }
             }
         } catch (err) {
             console.error("Jam3ya MySQL Init Error:", err);
@@ -85,8 +102,19 @@ class Jam3yaMySQLAdapter {
                 details TEXT,
                 amount DECIMAL(15,3),
                 balance DECIMAL(15,3),
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                is_approved TINYINT DEFAULT 1,
+                created_by_member TINYINT DEFAULT 0
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+            CREATE TABLE IF NOT EXISTS visitors (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                ip VARCHAR(45) NOT NULL,
+                path TEXT NOT NULL,
+                date VARCHAR(50) NOT NULL,
+                user_agent TEXT,
+                member_name VARCHAR(255) DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `;
         try {
             await this.pool.query(schema);
