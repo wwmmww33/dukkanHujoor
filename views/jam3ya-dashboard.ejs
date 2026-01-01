@@ -1066,9 +1066,22 @@
             }
 
             const encodedMessage = encodeURIComponent(message);
-            const url = `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedMessage}`;
             
-            window.open(url, '_blank');
+            const isMobile = /iPhone|Android|iPad|iPod/i.test(navigator.userAgent); 
+            
+            if (isMobile) { 
+                // Using hidden anchor click to trigger deep link without leaving page context or opening blank tab
+                const link = document.createElement('a');
+                link.href = `whatsapp://send?phone=${formattedPhone}&text=${encodedMessage}`;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else { 
+                // Desktop: open web.whatsapp.com in new tab
+                const url = `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedMessage}`; 
+                window.open(url, '_blank');
+            } 
         }
 
         function filterMembers() {
