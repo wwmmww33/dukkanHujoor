@@ -20,6 +20,9 @@ i18n.configure({
 const { getAIsuggestedCategory } = require('./ai-classifier');
 const express = require('express');
 const XLSX = require('xlsx');
+const { initJam3ya } = require('./services/jam3ya');
+const { buildJam3yaRouter } = require('./routes/jam3ya');
+const { createJam3yaReminders } = require('./services/jam3yaReminders');
 
 // Safe SQLite3 Loading
 let sqlite3;
@@ -143,13 +146,23 @@ app.use((req, res, next) => {
 });
 
 // Jam3ya Database Connection
-const Jam3yaMySQLAdapter = require('./jam3ya-mysql-adapter');
+// const Jam3yaMySQLAdapter = require('./jam3ya-mysql-adapter');
+
+// Timezone Helper (GMT+4)
+const getGulfDate = () => {
+    const now = new Date();
+    const offset = 4 * 60 * 60 * 1000; // 4 Hours
+    return new Date(now.getTime() + offset);
+};
+const getGulfDateString = () => getGulfDate().toISOString().split('T')[0];
+const getGulfDateTimeString = () => getGulfDate().toISOString();
 
 // Function to attempt MySQL connection (Fallback)
 const tryMysqlFallback = () => {
     if (process.env.NODE_ENV === 'production') {
         console.log("Attempting MySQL fallback for Jam3ya...");
         try {
+            const Jam3yaMySQLAdapter = require('./jam3ya-mysql-adapter');
             jam3yaDb = new Jam3yaMySQLAdapter({
                 host: process.env.JAM3YA_DB_HOST,
                 user: process.env.JAM3YA_DB_USER,
@@ -183,45 +196,23 @@ if (process.env.NODE_ENV === 'production') {
     // In Production: Always prefer MySQL
     console.log("Production environment: Prioritizing MySQL for Jam'iya.");
     tryMysqlFallback();
-    
-    // Only if MySQL fails, we might want to consider SQLite, but for now we enforce MySQL as primary.
-} else if (sqlite3) {
-    // In Development: Prefer SQLite if available (for local testing)
-    // Default to local file if JAM3YA_DB_NAME is not a file path
-    const dbName = process.env.JAM3YA_DB_NAME || '';
-    const dbPath = dbName.endsWith('.sqlite') 
-        ? dbName 
-        : path.join(__dirname, 'dukaazbg_jam3yatKA.sqlite');
+}
 
-    if (!require('fs').existsSync(dbPath)) {
-        console.warn("Jam3ya SQLite file not found at:", dbPath);
-        jam3yaDbError = "ملف قاعدة البيانات غير موجود في المسار المتوقع:<br>" + dbPath + "<br>يرجى التأكد من رفع الملف بالاسم الصحيح.";
-        jam3yaDb = null;
-    } else {
-        jam3yaDb = new sqlite3.Database(dbPath, (err) => {
-            if (err) {
-                console.error('Could not connect to Jam3ya database:', err);
-                jam3yaDbError = "SQLite Connection Failed: " + err.message;
-                jam3yaDb = null;
-            } else {
-                console.log('Connected to Jam3ya database (SQLite) at ' + dbPath);
-                jam3yaDb.run("ALTER TABLE members ADD COLUMN nickname TEXT", (err) => {});
-                jam3yaDb.run("ALTER TABLE members ADD COLUMN email TEXT", (err) => {});
-                // Ensure approval workflow columns exist on transactions
-                jam3yaDb.run("ALTER TABLE transactions ADD COLUMN is_approved INTEGER DEFAULT 1", (err) => {});
-                jam3yaDb.run("ALTER TABLE transactions ADD COLUMN created_by_member INTEGER DEFAULT 0", (err) => {});
-                jam3yaDb.run("CREATE TABLE IF NOT EXISTS visitors (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, path TEXT, date TEXT, user_agent TEXT, member_name TEXT)", (err) => {
-                    // Try to add member_name column if table exists but column doesn't
-                    if (!err) {
-                        jam3yaDb.run("ALTER TABLE visitors ADD COLUMN member_name TEXT", (e) => {});
-                    }
-                });
-            }
-        });
+// Fallback to SQLite (Development OR Production Fallback)
+// Jam3ya initialization moved to services/jam3ya.js
+// (keeps same jam3yaDb / jam3yaDbError variables used later)
+{
+    let Jam3yaMySQLAdapter = null;
+    if (process.env.NODE_ENV === 'production') {
+        try {
+            Jam3yaMySQLAdapter = require('./jam3ya-mysql-adapter');
+        } catch (e) {
+            // ignore - will fall back to sqlite if available
+        }
     }
-} else {
-    console.log("Skipping Jam3ya DB connection (Not production and no sqlite3).");
-    if (!jam3yaDbError) jam3yaDbError = "SQLite3 module missing or disabled";
+    const jam3yaInit = initJam3ya({ sqlite3, Jam3yaMySQLAdapter, env: process.env, baseDir: __dirname });
+    jam3yaDb = jam3yaInit.jam3yaDb;
+    jam3yaDbError = jam3yaInit.jam3yaDbError;
 }
 
 const sessionStore = new SessionStore(sessionStoreOptions);
@@ -241,6 +232,25 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
 
+// Global maintenance mode (disable the whole site)
+const siteEnabled = (process.env.SITE_ENABLED || 'true') === 'true';
+if (!siteEnabled) {
+    app.use((req, res, next) => {
+        // Allow static files so the maintenance page can still look good
+        const p = req.path || '';
+        if (p.startsWith('/uploads') || p.startsWith('/css') || p.startsWith('/js') || p.startsWith('/public')) {
+            return next();
+        }
+        return res.status(503).send(`
+            <div style="max-width: 720px; margin: 60px auto; padding: 28px; font-family: Arial, sans-serif; direction: rtl; text-align: center; border: 1px solid #eee; border-radius: 12px;">
+                <h2 style="margin: 0 0 12px; color: #2c3e50;">الموقع متوقف مؤقتًا</h2>
+                <p style="margin: 0 0 16px; color: #555; line-height: 1.7;">نعتذر عن الإزعاج، الموقع غير متاح حاليًا بسبب صيانة أو تحديثات. يرجى المحاولة لاحقًا.</p>
+                <p style="margin: 0; color: #888; font-size: 0.9em;">(HTTP 503 Service Unavailable)</p>
+            </div>
+        `);
+    });
+}
+
 app.use(session({
     key: 'session_cookie_name',
     secret: process.env.SESSION_SECRET || 'a-very-strong-fallback-secret-key-for-dukan',
@@ -253,6 +263,48 @@ app.use(session({
         maxAge: 24 * 60 * 60 * 1000 // يوم واحد
     }
 }));
+
+// Mount Jam3ya module under /jam3ya (Option A: same app, separated router)
+const jam3yaEnabled = (process.env.JAM3YA_ENABLED || 'true') === 'true';
+
+if (jam3yaEnabled) {
+    app.use(
+        '/jam3ya',
+        buildJam3yaRouter({
+            jam3yaDb,
+            jam3yaDbError,
+            getGulfDateString,
+            getGulfDateTimeString,
+            baseUrl: process.env.BASE_URL || 'http://localhost:3000'
+        })
+    );
+} else {
+    // Friendly maintenance page when Jam3ya is disabled
+    app.use('/jam3ya', (req, res) => {
+        res.status(503).send(`
+            <div style="max-width: 600px; margin: 60px auto; padding: 24px; font-family: Arial, sans-serif; direction: rtl; text-align: center; border: 1px solid #eee; border-radius: 12px;">
+                <h2 style="margin: 0 0 12px; color: #2c3e50;">الجمعية متوقفة مؤقتًا</h2>
+                <p style="margin: 0 0 16px; color: #555; line-height: 1.7;">نعتذر عن الإزعاج، خدمات الجمعية غير متاحة حاليًا بسبب صيانة أو تحديثات. يرجى المحاولة لاحقًا.</p>
+                <a href="/" style="display: inline-block; background: #27ae60; color: #fff; padding: 10px 16px; border-radius: 8px; text-decoration: none;">العودة للمتجر</a>
+            </div>
+        `);
+    });
+}
+
+// Jam3ya reminders: manual + automatic (as before)
+if (jam3yaEnabled && process.env.JAM3YA_REMINDERS_ENABLED === 'true') {
+    try {
+        if (!jam3yaDb || jam3yaDbError) {
+            console.warn('Jam3ya reminders scheduling skipped: Jam3ya DB unavailable');
+        } else {
+            const { scheduleNextReminder } = createJam3yaReminders({ jam3yaDb, env: process.env });
+            scheduleNextReminder();
+            console.log('Jam3ya reminders scheduling enabled');
+        }
+    } catch (e) {
+        console.error('Failed to start Jam3ya reminders scheduler:', e);
+    }
+}
 
 // Visitor Tracking Middleware (Disabled - Logging only on successful login as per request)
 // app.use((req, res, next) => {
@@ -276,19 +328,7 @@ app.use(session({
 //     next();
 // });
 
-// Helper for logging visitors
-const logVisitor = (req, memberName) => {
-    if (!jam3yaDb) return;
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const path = req.originalUrl; // Will show /jam3ya/login or /jam3ya/login/confirm
-    const ua = req.get('User-Agent') || '';
-    const date = new Date().toISOString();
-    
-    jam3yaDb.run("INSERT INTO visitors (ip, path, date, user_agent, member_name) VALUES (?, ?, ?, ?, ?)", 
-        [ip, path, date, ua, memberName], (err) => {
-        if (err) console.error("Visitor Log Error:", err.message);
-    });
-};
+// Jam3ya visitor logging + routes were moved to routes/jam3ya.js
 
 app.use((req, res, next) => { res.locals.user = req.session.user || null; res.locals.query = req.query; next(); });
 
@@ -320,115 +360,7 @@ const compressImage = async (fileBuffer) => {
         return null;
     }
 };
-const transporter = nodemailer.createTransport({
-    host: process.env.MAIL_HOST, // <-- تم التعديل
-    port: process.env.MAIL_PORT, // <-- تم التعديل
-    secure: true,
-    auth: {
-        user: process.env.MAIL_USER, // <-- تم التعديل
-        pass: process.env.MAIL_PASS, // <-- تم التعديل
-    },
-});
-
-async function getUnpaidMembersEmailsForYear(year) {
-    return new Promise((resolve, reject) => {
-        if (!jam3yaDb) return reject(new Error('Jam3ya DB unavailable'));
-        jam3yaDb.serialize(() => {
-            jam3yaDb.all("SELECT id, member_code, name, email, is_active, passcode FROM members", (mErr, members) => {
-                if (mErr) return reject(mErr);
-                const activeWithEmail = (members || []).filter(m => (m.is_active == 1 || m.is_active == null) && m.email && m.email.trim() !== '');
-                const targetCodes = new Set(activeWithEmail.map(m => String(m.member_code || '').trim()));
-                jam3yaDb.all("SELECT item, date, details, subject, is_approved FROM transactions WHERE subject = 'مساهمات الاعضاء' AND is_approved = 1", (tErr, rows) => {
-                    if (tErr) return reject(tErr);
-                    const paid = new Set();
-                    (rows || []).forEach(r => {
-                        const item = String(r.item || '').trim();
-                        const details = String(r.details || '');
-                        const dateStr = String(r.date || '');
-                        let isPaid = false;
-                        const years = (details.match(/\d{4}/g) || []);
-                        if (years.includes(String(year))) isPaid = true;
-                        else if (dateStr.startsWith(String(year))) isPaid = true;
-                        if (isPaid) paid.add(item);
-                    });
-                    const unpaid = activeWithEmail.filter(m => !paid.has(String(m.member_code || '').trim()));
-                    resolve(unpaid);
-                });
-            });
-        });
-    });
-}
-
-async function sendQuarterReminders() {
-    try {
-        const currentYear = new Date().getFullYear();
-        const list = await getUnpaidMembersEmailsForYear(currentYear);
-        for (const m of list) {
-            const to = String(m.email).trim();
-            if (!to) continue;
-            await transporter.sendMail({
-                from: `"جمعية الخطوة الأهلية" <${process.env.MAIL_USER}>`,
-                to,
-                subject: `جمعية الخطوة الأهلية (تذكير)`,
-                html: `
-                    <div style="direction: rtl; font-family: Arial, sans-serif; padding: 20px; line-height: 1.7; color: #333;">
-                        <h2 style="color: #2c3e50;">جمعية الخطوة الأهلية</h2>
-                        <hr style="border: 1px solid #eee;">
-                        <p>مرحباً ${m.name}،</p>
-                        <p>هذا تذكير ودي بالمساهمة السنوية عن سنة <strong>${currentYear}</strong>، حيث يظهر لدينا أنك لم تسدد حتى الآن.</p>
-                        <p>نرجو المبادرة بالسداد جزاكم الله خيراً.</p>
-                        <br>
-                        <p>
-                            لمزيد من التفاصيل، يمكنكم زيارة صفحة الجمعية:<br>
-                            <a href="${process.env.BASE_URL || 'http://localhost:3000'}/jam3ya" style="display: inline-block; background-color: #27ae60; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">
-                                الذهاب لصفحة الجمعية
-                            </a>
-                        </p>
-                        <p style="background: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px dashed #ccc; display: inline-block;">
-                            <strong>الرمز السري الخاص بك:</strong> <span style="font-family: monospace; font-size: 1.2em; color: #c0392b;">${m.passcode || '---'}</span>
-                        </p>
-                        <br>
-                        <p style="color: #777; font-size: 0.9em;">مع التحيات،<br>إدارة جمعية الخطوة الأهلية</p>
-                    </div>
-                `
-            });
-        }
-    } catch (e) {
-        console.error("Quarter reminder error:", e);
-    }
-}
-
-function getNextReminderDate() {
-    const now = new Date();
-    const months = [2, 5, 8, 11];
-    for (let i = 0; i < months.length; i++) {
-        const d = new Date(now.getFullYear(), months[i], 23, 19, 0, 0, 0);
-        if (d.getTime() > now.getTime()) return d;
-    }
-    return new Date(now.getFullYear() + 1, months[0], 23, 19, 0, 0, 0);
-}
-
-function scheduleNextReminder() {
-    const next = getNextReminderDate();
-    const now = Date.now();
-    const delay = Math.max(0, next.getTime() - now);
-    const MAX_DELAY = 2147483647; // ~24.8 days
-
-    if (delay > MAX_DELAY) {
-        console.log(`Next reminder is in future. Waiting...`);
-        setTimeout(scheduleNextReminder, MAX_DELAY);
-    } else {
-        console.log(`Scheduling reminder in ${delay}ms`);
-        setTimeout(async () => {
-            await sendQuarterReminders();
-            scheduleNextReminder();
-        }, delay);
-    }
-}
-
-if (process.env.JAM3YA_REMINDERS_ENABLED === 'true') {
-    scheduleNextReminder();
-}
+// Jam3ya reminders moved to services/jam3yaReminders.js and are invoked from routes/jam3ya.js
 
 // =============================================================================
 // المسارات (Routes)
@@ -494,615 +426,53 @@ app.get('/', async (req, res) => {
     }
 });
 
-// Jam3ya Helper Middleware
-const checkJam3yaDb = (req, res, next) => {
-    // Check if Jam3ya DB is null OR if it has an initialization error (for MySQL adapter)
-    if (!jam3yaDb || (jam3yaDb.initializationError)) {
-        // Try to initialize Jam3ya DB again (fallback attempt)
-        if (process.env.NODE_ENV === 'production' && mysql) {
-            // Check if we can fallback to MySQL for Jam3ya
-            // Note: This assumes tables exist in MySQL.
-            // For now, we just return 503 if sqlite failed.
-        }
+// NOTE: Jam3ya routes moved to routes/jam3ya.js and mounted at /jam3ya above.
 
-        const errorMsg = jam3yaDb && jam3yaDb.initializationError 
-            ? jam3yaDb.initializationError.message || jam3yaDb.initializationError
-            : jam3yaDbError;
+// Jam3ya admin/dashboard routes were moved to routes/jam3ya.js and mounted at /jam3ya.
 
-        // Debug: Check password length and Host
-        const passLen = process.env.JAM3YA_DB_PASSWORD ? process.env.JAM3YA_DB_PASSWORD.length : 'N/A';
-        const dbHost = process.env.JAM3YA_DB_HOST || 'localhost (default)';
-        const debugInfo = `User: ${process.env.JAM3YA_DB_USER} | DB: ${process.env.JAM3YA_DB_NAME} | Host: ${dbHost} | PassLen: ${passLen}`;
+/*
+    NOTE: Legacy inline Jam3ya routes below are now disabled.
+    They have been (or will be) migrated into routes/jam3ya.js.
+    Keeping them commented avoids runtime errors like requireJam3yaAdmin not defined,
+    and prevents double-handling of /jam3ya/* paths.
+*/
 
-        if (req.xhr || (req.headers.accept && req.headers.accept.indexOf('json') > -1)) {
-            return res.status(503).json({ success: false, message: 'Jam3ya service unavailable (DB connection failed)' });
-        }
-
-        let hint = "";
-        if (errorMsg && errorMsg.includes('to database')) {
-             hint = '<strong>Diagnosis:</strong> Password is CORRECT, but the User has no permissions.<br><strong>Fix:</strong> Go to cPanel -> MySQL Databases -> Add User to Database -> Select User & DB -> Add -> <strong>CHECK ALL PRIVILEGES</strong> -> Make Changes.';
-        } else if (errorMsg && errorMsg.includes('Access denied')) {
-             hint = '<strong>Diagnosis:</strong> Wrong Password or User does not exist.<br><strong>Fix:</strong> Check .env password matches cPanel password exactly.';
-        }
-
-        return res.status(503).send(`
-            <div style="text-align:center; padding:50px; font-family:sans-serif;">
-                <h1>عذراً</h1>
-                <p>نظام الجمعية غير متاح حالياً بسبب مشكلة في الاتصال بقاعدة البيانات.</p>
-                <p style="color:red; direction:ltr; text-align: left; background: #ffe6e6; padding: 10px; border-radius: 5px;">
-                    <strong>Error Details:</strong><br>
-                    ${errorMsg || 'Unknown Error'}<br><br>
-                    <strong>Debug Info:</strong> ${debugInfo}<br><br>
-                    ${hint}
-                </p>
-                <p>يرجى المحاولة في وقت لاحق.</p>
-                <a href="/">العودة للرئيسية</a>
-            </div>
-        `);
-    }
-    next();
-};
-
-// Jam3ya Forgot Password Handler
-app.post('/jam3ya/forgot-password', checkJam3yaDb, (req, res) => {
-    const { phone, email } = req.body;
-    
-    // 1. Find member by phone
-    jam3yaDb.get("SELECT * FROM members WHERE phone = ?", [phone], (err, row) => {
-        if (err) {
-            console.error("Forgot Password DB Error:", err);
-            return res.render('jam3ya-login', { error: 'حدث خطأ في النظام', layout: false, isAdmin: false });
-        }
-        
-        if (!row) {
-            return res.render('jam3ya-login', { error: 'رقم الهاتف غير مسجل في النظام', layout: false, isAdmin: false });
-        }
-
-        // Helper function to send email
-        const sendPasswordEmail = async (targetEmail) => {
-            try {
-                // Configure Transporter (Support for Gmail and Custom SMTP)
-                let transporterConfig;
-                if (process.env.SMTP_HOST) {
-                    // Custom SMTP (e.g., cPanel Email)
-                    // Ensure port is number
-                    const port = parseInt(process.env.SMTP_PORT) || 465;
-                    transporterConfig = {
-                        host: process.env.SMTP_HOST,
-                        port: port,
-                        secure: port === 465, // true for 465, false for other ports
-                        auth: {
-                            user: process.env.EMAIL_USER,
-                            pass: process.env.EMAIL_PASS
-                        },
-                        tls: {
-                            // Do not fail on invalid certs
-                            rejectUnauthorized: false
-                        }
-                    };
-                } else {
-                    // Default to Gmail
-                    transporterConfig = {
-                        service: 'gmail',
-                        auth: {
-                            user: process.env.EMAIL_USER,
-                            pass: process.env.EMAIL_PASS
-                        }
-                    };
-                }
-
-                const transporter = nodemailer.createTransport(transporterConfig);
-
-                if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-                    console.error("Email credentials not set");
-                    return res.render('jam3ya-login', { 
-                        error: 'لم يتم إعداد خادم البريد الإلكتروني. يرجى التواصل مع الإدارة.', 
-                        layout: false, 
-                        isAdmin: false 
-                    });
-                }
-
-                await transporter.sendMail({
-                    from: `"جمعية الخطوة الأهلية" <${process.env.EMAIL_USER}>`,
-                    to: targetEmail,
-                    subject: 'استعادة الرمز السري - جمعية الخطوة الأهلية',
-                    html: `
-                        <div style="direction: rtl; font-family: Arial, sans-serif; padding: 20px; line-height: 1.6;">
-                            <p>مرحباً ${row.name}،</p>
-                            <p>بناءً على طلبكم، نرسل لكم الرمز السري الخاص بكم للدخول إلى النظام.</p>
-                            <br>
-                            <p style="font-size: 18px; font-weight: bold; color: #2c3e50;">الرمز السري:</p>
-                            <h2 style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: inline-block; color: #2980b9; letter-spacing: 2px;">
-                                ${row.passcode}
-                            </h2>
-                            <br><br>
-                            <p>مع تحيات،<br>جمعية الخطوة الأهلية</p>
-                        </div>
-                    `
-                });
-                
-                res.render('jam3ya-login', { 
-                    error: null, 
-                    success: 'تم إرسال الرمز السري إلى بريدك الإلكتروني بنجاح', 
-                    layout: false, 
-                    isAdmin: false 
-                });
-            } catch (emailErr) {
-                console.error("Email Send Error:", emailErr);
-                res.render('jam3ya-login', { 
-                    error: 'حدث خطأ أثناء إرسال البريد الإلكتروني: ' + emailErr.message, 
-                    layout: false, 
-                    isAdmin: false 
-                });
-            }
-        };
-        
-        // 2. Check if email is registered
-        if (row.email && row.email.trim() !== '') {
-            // Case A: Email exists - Verify match
-            if (row.email.trim().toLowerCase() === email.trim().toLowerCase()) {
-                sendPasswordEmail(row.email);
-            } else {
-                return res.render('jam3ya-login', { 
-                    error: 'البريد الإلكتروني المدخل لا يتطابق مع المسجل لدينا. يرجى التواصل مع مدير النظام.', 
-                    layout: false, 
-                    isAdmin: false 
-                });
-            }
-        } else {
-            // Case B: Email does not exist - Update and Send
-            jam3yaDb.run("UPDATE members SET email = ? WHERE id = ?", [email, row.id], (updateErr) => {
-                if (updateErr) {
-                    console.error("Update Email Error:", updateErr);
-                    return res.render('jam3ya-login', { error: 'حدث خطأ أثناء تحديث البريد الإلكتروني', layout: false, isAdmin: false });
-                }
-                sendPasswordEmail(email);
-            });
-        }
-    });
-});
-
-// Jam3ya Login Page (For Regular Members)
-app.get('/jam3ya/login', (req, res) => {
-    res.render('jam3ya-login', { error: null, layout: false, isAdmin: false });
-});
-
-// Jam3ya Login Handler (Passcode only for members & admins)
-app.post('/jam3ya/login', checkJam3yaDb, (req, res) => {
-    const { passcode } = req.body;
-    
-    // 1. Check Master Admin Passcode (Fallback)
-    const masterPass = process.env.JAM3YA_ADMIN_PASS || '123456';
-    if (passcode === masterPass) {
-        req.session.jam3ya_admin = true;
-        logVisitor(req, 'مدير النظام (Master)');
-        return res.redirect('/jam3ya/dashboard');
-    }
-
-    // 2. Check Member
-    jam3yaDb.get("SELECT * FROM members WHERE passcode = ?", [passcode], (err, row) => {
-        if (err) {
-            console.error("Member Login DB Error:", err);
-            return res.render('jam3ya-login', { error: 'حدث خطأ في النظام: ' + (err.message || err), layout: false, isAdmin: false });
-        }
-        
-        if (row) {
-            // Check if Admin
-            if (row.is_admin === 1) {
-                // Render Role Selection
-                req.session.temp_jam3ya_user = row; // Store temporarily
-                return res.render('jam3ya-role-select', { name: row.name, layout: false });
-            }
-
-            // Successful regular member login
-            req.session.jam3ya_member = true;
-            req.session.jam3ya_member_id = row.id;
-            req.session.jam3ya_member_name = row.name;
-            req.session.jam3ya_member_code = row.member_code; // Store member code for linking transactions
-            
-            logVisitor(req, row.name);
-
-            req.session.save(() => {
-                res.redirect('/jam3ya');
-            });
-        } else {
-            res.render('jam3ya-login', { error: 'الرمز السري غير صحيح', layout: false, isAdmin: false });
-        }
-    });
-});
-
-// Confirm Role Selection (Admin vs Member)
-app.post('/jam3ya/login/confirm', (req, res) => {
-    const user = req.session.temp_jam3ya_user;
-    const { role } = req.body;
-
-    if (!user) return res.redirect('/jam3ya/login');
-
-    if (role === 'admin') {
-        req.session.jam3ya_admin = true;
-        req.session.jam3ya_admin_id = user.id;
-        req.session.jam3ya_admin_name = user.name;
-        
-        // Also set member session just in case they navigate to main page? 
-        // User asked for "enter as admin OR member". 
-        // If they enter as admin, they go to dashboard.
-        // If they enter as member, they go to main page.
-        // Let's keep strict separation for now based on user request.
-    } else {
-        req.session.jam3ya_member = true;
-        req.session.jam3ya_member_id = user.id;
-        req.session.jam3ya_member_name = user.name;
-        req.session.jam3ya_member_code = user.member_code;
-    }
-
-    logVisitor(req, user.name + (role === 'admin' ? ' (Admin Access)' : ''));
-
-    delete req.session.temp_jam3ya_user;
-    req.session.save(() => {
-        if (role === 'admin') res.redirect('/jam3ya/dashboard');
-        else res.redirect('/jam3ya');
-    });
-});
-
-// Helper to process Jam3ya transactions
-const processJam3yaData = (rows, initialBalance) => {
-    let currentBalance = initialBalance;
-    let totalIncome = 0;
-    let totalExpense = 0;
-    const expensesBySubject = {};
-
-    // Sort by date ASC, id ASC for calculation
-    // Note: We clone rows to avoid mutating the original array order if it matters, 
-    // but here we just want to process them in chronological order.
-    // However, the SQL "ORDER BY date ASC, id ASC" should already ensure this.
-    // We will rely on SQL order for calculation.
-    
-    rows.forEach(row => {
-        // Ensure date is string YYYY-MM-DD for display and sorting logic
-        if (row.date instanceof Date) {
-            row.date = row.date.toISOString().split('T')[0];
-        }
-
-        let amount = 0;
-        if (typeof row.amount === 'number') amount = row.amount;
-        else if (typeof row.amount === 'string') {
-            const cleanAmount = row.amount.replace(/٫/g, '.').replace(/,/g, '.');
-            amount = parseFloat(cleanAmount) || 0;
-        }
-        row.amount = amount;
-        const isApproved = (row.is_approved === undefined || row.is_approved === null) ? 1 : row.is_approved;
-        const effectiveAmount = isApproved ? amount : 0;
-        currentBalance += effectiveAmount;
-        row.balance = currentBalance.toFixed(3);
-
-        if (effectiveAmount > 0) totalIncome += effectiveAmount;
-        else totalExpense += Math.abs(effectiveAmount);
-
-        if (row.subject) {
-            if (!expensesBySubject[row.subject]) {
-                expensesBySubject[row.subject] = {
-                    name: row.subject,
-                    total: 0,
-                    transactions: [],
-                    lastDate: row.date || ''
-                };
-            }
-            expensesBySubject[row.subject].total += effectiveAmount;
-            expensesBySubject[row.subject].transactions.push(row);
-            if (row.date && row.date > expensesBySubject[row.subject].lastDate) {
-                expensesBySubject[row.subject].lastDate = row.date;
-            }
-        }
-    });
-
-    const subjectsList = Object.values(expensesBySubject).sort((a, b) => {
-        if (b.lastDate < a.lastDate) return -1;
-        if (b.lastDate > a.lastDate) return 1;
-        return 0;
-    });
-    
-    subjectsList.forEach(subject => subject.transactions.reverse()); // Newest first
-    
-    // Reverse rows for main display (Newest first)
-    const displayRows = [...rows].reverse();
-
-    return {
-        transactions: displayRows,
-        subjectsList,
-        totalIncome,
-        totalExpense,
-        currentBalance,
-        initialBalance
-    };
-};
-
-// Jam3ya Route
-app.get('/jam3ya', checkJam3yaDb, async (req, res) => {
-    try {
-        let memberId = req.session.jam3ya_member_id;
-        let memberCode = req.session.jam3ya_member_code;
-        let memberName = req.session.jam3ya_member_name;
-        const isAdmin = !!req.session.jam3ya_admin;
-        const adminName = req.session.jam3ya_admin_name || 'مدير النظام';
-
-        // Force Login: If not logged in as member or admin, redirect to login
-        if (!memberId && !isAdmin) {
-            return res.redirect('/jam3ya/login');
-        }
-
-        // Refetch Member Code if missing (to fix existing sessions)
-        if (memberId && !memberCode) {
-            const member = await new Promise((resolve) => {
-                jam3yaDb.get("SELECT * FROM members WHERE id = ?", [memberId], (err, row) => {
-                    if (err || !row) resolve(null);
-                    else resolve(row);
-                });
-            });
-            if (member) {
-                memberCode = member.member_code;
-                memberName = member.name;
-                // Update session
-                req.session.jam3ya_member_code = memberCode;
-                req.session.jam3ya_member_name = memberName;
-                req.session.save();
-            }
-        }
-
-        // Handle Admin View of Specific Member
-        if (isAdmin && req.query.view_member_code) {
-            const targetCode = req.query.view_member_code;
-            const targetMember = await new Promise((resolve) => {
-                jam3yaDb.get("SELECT * FROM members WHERE member_code = ?", [targetCode], (err, row) => {
-                    if (err || !row) resolve(null);
-                    else resolve(row);
-                });
-            });
-
-            if (targetMember) {
-                // Override for display context in this request only
-                memberCode = targetMember.member_code;
-                memberName = targetMember.name + " (عرض كمدير)";
-                memberId = targetMember.id; // Ensures tabs appear
-            }
-        }
-        
-        // 1. Fetch All Transactions (Public/Main View)
-        const allTransactionsPromise = new Promise((resolve, reject) => {
-            jam3yaDb.all("SELECT * FROM transactions ORDER BY date ASC, id ASC", [], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-
-        // 2. Fetch Member Transactions (If logged in)
-        let memberTransactionsPromise = Promise.resolve(null);
-        if (memberCode) {
-            memberTransactionsPromise = new Promise((resolve, reject) => {
-                // Use memberCode (e.g., '101') instead of ID for linking transactions
-                jam3yaDb.all("SELECT * FROM transactions WHERE item = ? ORDER BY date ASC, id ASC", [memberCode], (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
-                });
-            });
-        }
-
-        const [allRows, memberRows] = await Promise.all([allTransactionsPromise, memberTransactionsPromise]);
-
-        // Process Data
-        const mainData = processJam3yaData(allRows || [], 1240); // 1240 is global initial balance
-        
-        let memberData = null;
-        if (memberRows) {
-            memberData = processJam3yaData(memberRows, 0); // 0 is member initial balance
-        }
-
-        // Load members list for name search (for member-submitted payments)
-        let membersList = [];
-        await new Promise((resolve) => {
-            jam3yaDb.all("SELECT id, member_code, name, nickname FROM members ORDER BY name ASC", (err, rows) => {
-                if (!err && rows) membersList = rows;
-                resolve();
-            });
-        });
-
-        res.render('jam3ya', { 
-            title: 'جمعية الخطوة الأهلية', 
-            mainData,
-            memberData,
-            isLoggedIn: !!memberId,
-            memberId: memberCode, // Only display Code
-            memberName,
-            isAdmin,
-            adminName,
-            membersList,
-            layout: false 
-        });
-
-    } catch (err) {
-        console.error("Jam3ya Page Error:", err);
-        res.status(500).send("Database Error");
-    }
-});
-
-// ==========================================
-// Jam'iya Admin Routes
-// ==========================================
-
-// Jam'iya Admin Login - Redirect to unified login
-app.get('/jam3ya/admin', (req, res) => {
-    res.redirect('/jam3ya/login');
-});
-
-// Deprecated Admin POST - Redirect
-app.post('/jam3ya/admin', (req, res) => {
-    res.redirect('/jam3ya/login');
-});
-
-// Jam'iya Admin Logout
-app.get('/jam3ya/logout', (req, res) => {
-    req.session.jam3ya_admin = false;
-    req.session.jam3ya_member = false;
-    req.session.jam3ya_member_id = null;
-    req.session.jam3ya_member_name = null;
-    req.session.jam3ya_member_code = null;
-    res.redirect('/jam3ya');
-});
-
-// Middleware for Jam'iya Admin
-const requireJam3yaAdmin = (req, res, next) => {
-    if (!req.session.jam3ya_admin) return res.redirect('/jam3ya/login');
-    if (!jam3yaDb) return res.status(503).send("Database Unavailable");
-    next();
-};
-// Member-only middleware
-const requireJam3yaMember = (req, res, next) => {
-    if (!req.session.jam3ya_member) return res.redirect('/jam3ya/login');
-    if (!jam3yaDb) return res.status(503).send("Database Unavailable");
-    next();
-};
-
-app.post('/jam3ya/reminders/send', requireJam3yaAdmin, async (req, res) => {
-    try {
-        await sendQuarterReminders();
-        res.redirect('/jam3ya/dashboard?tab=unpaid');
-    } catch (e) {
-        console.error("Manual reminder error:", e);
-        res.redirect('/jam3ya/dashboard?tab=unpaid');
-    }
-});
-
-// Handle Add Transaction
-app.post('/jam3ya/transactions/add', requireJam3yaAdmin, (req, res) => {
-    const { date, type, subject, member_id, description, details, amount } = req.body;
-    
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    let finalAmount = parseFloat(amount);
-    
-    if (type === 'expense') {
-        finalAmount = -Math.abs(finalAmount);
-    } else {
-        finalAmount = Math.abs(finalAmount);
-    }
-
-    const processTransaction = (itemValue) => {
-        jam3yaDb.run(
-            "INSERT INTO transactions (date, subject, item, details, amount, balance, is_approved, created_by_member) VALUES (?, ?, ?, ?, ?, 0, 1, 0)",
-            [targetDate, subject, itemValue, details, finalAmount],
-            (err) => {
-                if (err) {
-                    console.error("Transaction Insert Error:", err);
-                    return res.status(500).send("Error adding transaction");
-                }
-                res.redirect('/jam3ya/dashboard?tab=transactions');
-            }
-        );
-    };
-
-    if (member_id) {
-        jam3yaDb.get("SELECT member_code FROM members WHERE id = ?", [member_id], (err, row) => {
-            if (err || !row) {
-                return res.status(404).send("Member not found");
-            }
-            processTransaction(row.member_code);
-        });
-    } else {
-        processTransaction(description || '');
-    }
-});
-
-// Member-submitted contribution (pending approval)
-app.post('/jam3ya/transactions/submit', requireJam3yaMember, (req, res) => {
-    const { target_member_code, year, amount } = req.body;
-    const subject = 'مساهمات الاعضاء';
-    const targetDate = new Date().toISOString().split('T')[0];
-    const finalAmount = Math.abs(parseFloat(amount));
-    const details = year ? String(year) : '';
-
-    const insertForCode = (code) => {
-        jam3yaDb.run(
-            "INSERT INTO transactions (date, subject, item, details, amount, balance, is_approved, created_by_member) VALUES (?, ?, ?, ?, ?, 0, 0, 1)",
-            [targetDate, subject, code, details, finalAmount],
-            (err) => {
-                if (err) {
-                    console.error("Member Submit Error:", err);
-                    return res.status(500).send("Error submitting transaction");
-                }
-                res.redirect('/jam3ya');
-            }
-        );
-    };
-
-    if (target_member_code) {
-        jam3yaDb.get("SELECT member_code FROM members WHERE member_code = ?", [target_member_code], (err, row) => {
-            if (err || !row) return res.status(404).send("Member code not found");
-            insertForCode(row.member_code);
-        });
-    } else {
-        const ownCode = req.session.jam3ya_member_code;
-        if (!ownCode) return res.status(403).send("Session member code missing");
-        insertForCode(ownCode);
-    }
-});
-
-// Handle Edit Transaction
-app.post('/jam3ya/transactions/edit', requireJam3yaAdmin, (req, res) => {
-    const { id, date, type, subject, member_id, description, details, amount } = req.body;
-    
-    const targetDate = date;
-    let finalAmount = parseFloat(amount);
-    
-    if (type === 'expense') {
-        finalAmount = -Math.abs(finalAmount);
-    } else {
-        finalAmount = Math.abs(finalAmount);
-    }
-
-    const processUpdate = (itemValue) => {
-        jam3yaDb.run(
-            "UPDATE transactions SET date = ?, subject = ?, item = ?, details = ?, amount = ? WHERE id = ?",
-            [targetDate, subject, itemValue, details, finalAmount, id],
-            (err) => {
-                if (err) {
-                    console.error("Transaction Update Error:", err);
-                    return res.status(500).send("Error updating transaction");
-                }
-                res.redirect('/jam3ya/dashboard?tab=transactions');
-            }
-        );
-    };
-
-    if (member_id) {
-        jam3yaDb.get("SELECT member_code FROM members WHERE id = ?", [member_id], (err, row) => {
-            if (err || !row) {
-                return res.status(404).send("Member not found");
-            }
-            processUpdate(row.member_code);
-        });
-    } else {
-        processUpdate(description || '');
-    }
-});
+/*
 
 // Handle Delete Transaction
 app.post('/jam3ya/transactions/delete', requireJam3yaAdmin, (req, res) => {
     const { id } = req.body;
-    jam3yaDb.run("DELETE FROM transactions WHERE id = ?", [id], (err) => {
-        if (err) {
-            console.error("Transaction Delete Error:", err);
-            return res.status(500).send("Error deleting transaction");
-        }
-        res.redirect('/jam3ya/dashboard?tab=transactions');
+    
+    jam3yaDb.serialize(() => {
+        jam3yaDb.run(
+            "DELETE FROM obligation_payments WHERE transaction_id = ?",
+            [id],
+            (payErr) => {
+                if (payErr) {
+                    console.error("Obligation Payment Delete Error:", payErr);
+                }
+                jam3yaDb.run("DELETE FROM transactions WHERE id = ?", [id], async (err) => {
+                    if (err) {
+                        console.error("Transaction Delete Error:", err);
+                        return res.status(500).send("Error deleting transaction");
+                    }
+                    await updatePublicExcelFile();
+                    res.redirect('/jam3ya/dashboard?tab=transactions');
+                });
+            }
+        );
     });
 });
 
 // Approve pending transaction
 app.post('/jam3ya/transactions/approve', requireJam3yaAdmin, (req, res) => {
     const { id } = req.body;
-    jam3yaDb.run("UPDATE transactions SET is_approved = 1 WHERE id = ?", [id], (err) => {
+    jam3yaDb.run("UPDATE transactions SET is_approved = 1 WHERE id = ?", [id], async (err) => {
         if (err) {
             console.error("Transaction Approve Error:", err);
             return res.status(500).send("Error approving transaction");
         }
+        await updatePublicExcelFile();
         res.redirect('/jam3ya/dashboard?tab=transactions');
     });
 });
@@ -1110,211 +480,225 @@ app.post('/jam3ya/transactions/approve', requireJam3yaAdmin, (req, res) => {
 // Jam'iya Dashboard
 app.get('/jam3ya/dashboard', requireJam3yaAdmin, (req, res) => {
     const adminName = req.session.jam3ya_admin_name || 'مدير النظام';
-    jam3yaDb.serialize(() => {
-        jam3yaDb.all("SELECT * FROM members ORDER BY name ASC", (err, members) => {
-            if (err) return res.status(500).send("DB Error (Members): " + err.message);
-            jam3yaDb.all("SELECT * FROM subjects ORDER BY name ASC", (err, subjects) => {
-                if (err) {
-                    // If subjects table missing, assume empty
-                    if (err.message && err.message.includes("Table") && err.message.includes("doesn't exist")) {
-                        subjects = [];
-                    } else {
-                        return res.status(500).send("DB Error (Subjects): " + err.message);
-                    }
-                }
-                // Fetch in ASC order for correct balance calculation
-                jam3yaDb.all("SELECT * FROM transactions ORDER BY date ASC, id ASC", (err, transactions) => {
-                    if (err) return res.status(500).send("DB Error (Transactions): " + err.message);
 
-
-                    // Get active subjects (Top 4 most used)
-                    const subjectCounts = {};
-                    transactions.forEach(t => {
-                        subjectCounts[t.subject] = (subjectCounts[t.subject] || 0) + 1;
-                    });
-                    
-                    const activeSubjects = Object.entries(subjectCounts)
-                        .sort((a, b) => b[1] - a[1]) // Sort by count desc
-                        .slice(0, 4) // Take top 4
-                        .map(entry => entry[0]);
-
-                    // Calculate Summary Data
-                    const mainData = processJam3yaData(transactions, 1240); // 1240 is global initial balance
-
-                    // Fetch Visitors
-                    jam3yaDb.all("SELECT * FROM visitors ORDER BY id DESC LIMIT 200", (err, visitors) => {
-                        if (err) visitors = [];
-                        
-                        // Map member codes to names
-                        const memberMap = {};
-                    members.forEach(m => memberMap[m.member_code] = m.name);
-
-                    // Process transactions to show real names and reverse for display (Newest First)
-                    const processedTransactions = transactions.map(t => {
-                        let displayItem = t.item;
-                        let isMember = false;
-                        
-                        if (memberMap[t.item]) {
-                            displayItem = memberMap[t.item];
-                            isMember = true;
-                        }
-
-                        return {
-                            ...t,
-                            displayItem,
-                            isMember
-                        };
-                    }).reverse(); // Reverse to show newest first
-
-                    // Identify Unpaid Members for Current Year & Prepare Payment Report by Years
-                    const currentYear = new Date().getFullYear().toString();
-                    const paidMemberCodes = new Set();
-                    
-                    // Logic for Payment Report
-                    const paymentReport = {}; // { memberCode: { '2023': amount, '2024': amount } }
-                    const yearsSet = new Set(['2023', '2024', currentYear]); // Start with requested years
-
-                    transactions.forEach(t => {
-                        // Ensure date is string YYYY-MM-DD
-                        let dateStr = t.date;
-                        if (t.date instanceof Date) {
-                            dateStr = t.date.toISOString().split('T')[0];
-                        } else {
-                            dateStr = String(t.date);
-                        }
-                        
-                        // Update t.date for display consistency
-                        t.date = dateStr;
-
-                        const subject = (t.subject || '').trim();
-                        const item = (t.item || '').toString().trim();
-                        // Normalize details: convert Arabic-Indic digits to ASCII and stringify
-                        let details = (t.details || '').toString();
-                        details = details.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
-
-                        if (subject === 'مساهمات الاعضاء') {
-                            // Extract all 4-digit years from details (e.g., 2024, 2025)
-                            // We look for 20xx where xx is 20-30 to avoid matching other random 4-digit numbers if possible, 
-                            // but sticking to \b20\d{2}\b is safer for general years.
-                            const yearsInDetails = details.match(/\b20\d{2}\b/g);
-                            
-                            let isPaidForCurrentYear = false;
-                            
-                            // Determine which years this transaction covers
-                            let coveredYears = [];
-                            if (yearsInDetails && yearsInDetails.length > 0) {
-                                coveredYears = yearsInDetails;
-                            } else {
-                                // Fallback to transaction date year if no years in details
-                                if (dateStr) {
-                                    coveredYears = [dateStr.split('-')[0]];
-                                }
-                            }
-
-                            // Update Payment Report
-                            if (!paymentReport[item]) paymentReport[item] = {};
-                            coveredYears.forEach(year => {
-                                if (year >= '2023') { // Only track from 2023 onwards as requested/relevant
-                                    yearsSet.add(year);
-                                    if (!paymentReport[item][year]) paymentReport[item][year] = 0;
-                                    // If multiple years in details, split amount? Or attribute full amount to each?
-                                    // Usually amount covers one year unless specified.
-                                    // Assumption: If details say "2024, 2025" and amount is 24, it likely means 12 for each.
-                                    // BUT simplest approach: Attribute full amount to each year listed, or just mark as paid.
-                                    // User wants "Amount he paid". If he paid 12 and details say "2024", he paid 12 for 2024.
-                                    // If details "2024, 2025", he paid for both. Splitting is risky without knowing rules.
-                                    // Better approach: If multiple years, duplicate the amount entry? 
-                                    // No, let's assume one transaction = one year usually. 
-                                    // If details has multiple years, it's ambiguous. 
-                                    // Let's assume the amount is total. We will just ADD the transaction amount to that year's bucket.
-                                    // If multiple years are listed, we add the FULL amount to EACH year? No, that inflates total.
-                                    // Let's divide the amount by number of years if multiple years are detected.
-                                    const amountPerYear = t.amount / coveredYears.length;
-                                    paymentReport[item][year] += amountPerYear;
-                                }
-                            });
-
-                            // Logic for Unpaid List (Current Year)
-                            if (yearsInDetails && yearsInDetails.length > 0) {
-                                // If details contain years, strict check against currentYear
-                                if (yearsInDetails.includes(currentYear)) {
-                                    isPaidForCurrentYear = true;
-                                }
-                            } else {
-                                // If details contain NO year, fallback to transaction date
-                                if (dateStr && dateStr.startsWith(currentYear)) {
-                                    isPaidForCurrentYear = true;
-                                }
-                            }
-
-                            if (isPaidForCurrentYear) {
-                                paidMemberCodes.add(item);
-                                // Debug log for specific member 1330 to verify logic in production
-                                if (item === '1330') {
-                                    console.log(`[DEBUG] Member 1330 Marked as PAID. Source: ${yearsInDetails ? 'Details (' + yearsInDetails + ')' : 'Date (' + dateStr + ')'}`);
-                                }
-                            }
-                        }
-                    });
-
-                    // Prepare sorted years array for the view
-                    const sortedYears = Array.from(yearsSet).sort();
-
-                    // Calculate Yearly Totals
-                    const yearlyTotals = {};
-                    sortedYears.forEach(year => yearlyTotals[year] = 0);
-
-                    // Identify inactive members to exclude from statistics
-                    const inactiveMemberCodes = new Set();
-                    members.forEach(m => {
-                        if (m.is_active == 0) inactiveMemberCodes.add(String(m.member_code).trim());
-                    });
-
-                    Object.entries(paymentReport).forEach(([memberCode, memberPayments]) => {
-                        // Skip inactive members from statistics
-                        if (inactiveMemberCodes.has(memberCode)) return;
-
-                        for (const [year, amount] of Object.entries(memberPayments)) {
-                            if (yearlyTotals[year] !== undefined) {
-                                yearlyTotals[year] += amount;
-                            }
-                        }
-                    });
-
-                    const unpaidMembers = members.filter(m => {
-                        const memberCode = (m.member_code || '').toString().trim();
-                        // Check if active (1 or null/undefined, but NOT 0)
-                        // Note: Loose equality (==) handles string '1' vs number 1
-                        const isActive = (m.is_active == 1 || m.is_active == null);
-                        
-                        // If inactive, exclude from unpaid list (return false)
-                        if (!isActive) return false;
-
-                        // If already paid, exclude from unpaid list (return false)
-                        if (paidMemberCodes.has(memberCode)) return false;
-
-                        // Otherwise, they are unpaid and active
-                        return true;
-                    });
-
-                    res.render('jam3ya-dashboard', { 
-                        members, 
-                        subjects, 
-                        activeSubjects,
-                        transactions: processedTransactions, 
-                        unpaidMembers, // Pass to view
-                        paymentReport, // Pass to view
-                        yearlyTotals,  // Pass to view
-                        sortedYears,   // Pass to view
-                        mainData,
-                        adminName, 
-                        visitors, // Pass visitors
-                        layout: false 
-                    });
-                });
-            });
+    const dbAll = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            jam3yaDb.all(sql, params, (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows || []);
             });
         });
+    };
+
+    jam3yaDb.serialize(async () => {
+        try {
+            const members = await dbAll("SELECT * FROM members ORDER BY name ASC");
+
+            let subjects = [];
+            try {
+                subjects = await dbAll("SELECT * FROM subjects ORDER BY name ASC");
+            } catch (err) {
+                if (err.message && err.message.includes("Table") && err.message.includes("doesn't exist")) {
+                    subjects = [];
+                } else {
+                    return res.status(500).send("DB Error (Subjects): " + err.message);
+                }
+            }
+
+            let infoMessages = [];
+            try {
+                infoMessages = await dbAll("SELECT * FROM info_messages ORDER BY created_at DESC");
+            } catch (err) {
+                infoMessages = [];
+            }
+
+            const transactions = await dbAll("SELECT * FROM transactions ORDER BY date ASC, id ASC");
+
+            const recentSubjects = [];
+            const seenSubjects = new Set();
+            [...transactions].reverse().forEach(t => {
+                const subjectName = (t.subject || '').trim();
+                if (!subjectName) return;
+                if (seenSubjects.has(subjectName)) return;
+                seenSubjects.add(subjectName);
+                recentSubjects.push(subjectName);
+            });
+            const activeSubjects = recentSubjects.slice(0, 4);
+
+            const mainData = processJam3yaData(transactions, 0);
+
+            let obligationsRows = [];
+            try {
+                obligationsRows = await dbAll(
+                    "SELECT o.id, o.subject, o.description, o.total_amount, " +
+                    "COALESCE(SUM(p.amount), 0) AS paid_amount " +
+                    "FROM obligations o " +
+                    "LEFT JOIN obligation_payments p ON p.obligation_id = o.id " +
+                    "GROUP BY o.id " +
+                    "ORDER BY o.id DESC"
+                );
+            } catch (err) {
+                obligationsRows = [];
+            }
+
+            let obligations = [];
+            if (obligationsRows && Array.isArray(obligationsRows)) {
+                obligations = obligationsRows.map(o => {
+                    const paid = Number(o.paid_amount || 0);
+                    const total = Number(o.total_amount || 0);
+                    const remaining = total - paid;
+                    let status = 'open';
+                    if (paid <= 0) status = 'open';
+                    else if (remaining > 0) status = 'partial';
+                    else status = 'settled';
+                    return {
+                        id: o.id,
+                        subject: o.subject,
+                        description: o.description,
+                        total_amount: total,
+                        paid_amount: paid,
+                        remaining_amount: remaining,
+                        status
+                    };
+                });
+            }
+
+            let visitors = [];
+            try {
+                visitors = await dbAll("SELECT * FROM visitors ORDER BY id DESC LIMIT 200");
+            } catch (err) {
+                visitors = [];
+            }
+
+            const memberMap = {};
+            members.forEach(m => {
+                memberMap[m.member_code] = m.name;
+            });
+
+            const processedTransactions = transactions.map(t => {
+                let displayItem = t.item;
+                let isMember = false;
+
+                if (memberMap[t.item]) {
+                    displayItem = memberMap[t.item];
+                    isMember = true;
+                }
+
+                return {
+                    ...t,
+                    displayItem,
+                    isMember
+                };
+            }).reverse();
+
+            const currentYear = new Date().getFullYear().toString();
+            const targetYear = req.query.unpaid_year || currentYear;
+            const paidMemberCodes = new Set();
+
+            const paymentReport = {};
+            const yearsSet = new Set(['2023', '2024', currentYear, targetYear]);
+
+            transactions.forEach(t => {
+                let dateStr = t.date;
+                if (t.date instanceof Date) {
+                    dateStr = t.date.toISOString().split('T')[0];
+                } else {
+                    dateStr = String(t.date);
+                }
+
+                t.date = dateStr;
+
+                const subject = (t.subject || '').trim();
+                const item = (t.item || '').toString().trim();
+                let details = (t.details || '').toString();
+                details = details.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+
+                if (subject === 'مساهمات الاعضاء') {
+                    const yearsInDetails = details.match(/\b20\d{2}\b/g);
+
+                    let isPaidForTargetYear = false;
+
+                    let coveredYears = [];
+                    if (yearsInDetails && yearsInDetails.length > 0) {
+                        coveredYears = yearsInDetails;
+                    } else {
+                        if (dateStr) {
+                            coveredYears = [dateStr.split('-')[0]];
+                        }
+                    }
+
+                    if (!paymentReport[item]) paymentReport[item] = {};
+                    coveredYears.forEach(year => {
+                        if (year >= '2023') {
+                            yearsSet.add(year);
+                            if (!paymentReport[item][year]) paymentReport[item][year] = 0;
+                            const amountPerYear = t.amount / coveredYears.length;
+                            paymentReport[item][year] += amountPerYear;
+                        }
+                    });
+
+                    if (yearsInDetails && yearsInDetails.length > 0) {
+                        if (yearsInDetails.includes(targetYear)) {
+                            isPaidForTargetYear = true;
+                        }
+                    } else {
+                        if (dateStr && dateStr.startsWith(targetYear)) {
+                            isPaidForTargetYear = true;
+                        }
+                    }
+
+                    if (isPaidForTargetYear) {
+                        paidMemberCodes.add(item);
+                    }
+                }
+            });
+
+            const sortedYears = Array.from(yearsSet).sort();
+
+            const yearlyTotals = {};
+            sortedYears.forEach(year => {
+                yearlyTotals[year] = 0;
+            });
+
+            Object.entries(paymentReport).forEach(([, memberPayments]) => {
+                for (const [year, amount] of Object.entries(memberPayments)) {
+                    if (yearlyTotals[year] !== undefined) {
+                        yearlyTotals[year] += amount;
+                    }
+                }
+            });
+
+            const unpaidMembers = members.filter(m => {
+                const memberCode = (m.member_code || '').toString().trim();
+                const isActive = (m.is_active == 1 || m.is_active == null);
+
+                if (!isActive) return false;
+                if (paidMemberCodes.has(memberCode)) return false;
+
+                return true;
+            });
+
+            res.render('jam3ya-dashboard', {
+                members,
+                subjects,
+                activeSubjects,
+                transactions: processedTransactions,
+                unpaidMembers,
+                targetYear,
+                paymentReport,
+                yearlyTotals,
+                sortedYears,
+                obligations,
+                mainData,
+                adminName,
+                visitors,
+                infoMessages,
+                layout: false
+            });
+        } catch (err) {
+            console.error("Jam3ya Dashboard Error:", err);
+            res.status(500).send("Database Error");
+        }
     });
 });
 
@@ -1333,7 +717,7 @@ app.get('/jam3ya/export/excel', requireJam3yaAdmin, (req, res) => {
                     codeToName[code] = name;
                     nameToCode[name] = code;
                 });
-                const processed = processJam3yaData(rows, 1240);
+                const processed = processJam3yaData(rows, 0);
                 const modeParam = String(req.query.mode || '').toLowerCase();
                 const mode = (modeParam === 'names') ? 'names' : 'codes';
                 console.log(`[Export Excel] modeParam=${modeParam} resolved=${mode}, rows=${rows.length}, members=${members.length}`);
@@ -1390,7 +774,7 @@ app.get('/jam3ya/export/pdf', requireJam3yaAdmin, (req, res) => {
                     codeToName[code] = name;
                     nameToCode[name] = code;
                 });
-                processJam3yaData(rows, 1240);
+                processJam3yaData(rows, 0);
                 const modeParam = String(req.query.mode || '').toLowerCase();
                 const mode = (modeParam === 'names') ? 'names' : 'codes';
                 console.log(`[Export PDF] modeParam=${modeParam} resolved=${mode}, rows=${rows.length}, members=${members.length}`);
@@ -1478,6 +862,34 @@ app.get('/jam3ya/export/pdf', requireJam3yaAdmin, (req, res) => {
     });
 });
 
+// Save Info Message
+app.post('/jam3ya/info-messages/save', requireJam3yaAdmin, (req, res) => {
+    const { id, message, display_until } = req.body;
+    
+    if (id) {
+        // Update
+        jam3yaDb.run("UPDATE info_messages SET message = ?, display_until = ? WHERE id = ?", [message, display_until, id], (err) => {
+            if (err) console.error("Info Message Update Error:", err);
+            res.redirect('/jam3ya/dashboard?tab=info-messages');
+        });
+    } else {
+        // Add
+        jam3yaDb.run("INSERT INTO info_messages (message, display_until) VALUES (?, ?)", [message, display_until], (err) => {
+            if (err) console.error("Info Message Add Error:", err);
+            res.redirect('/jam3ya/dashboard?tab=info-messages');
+        });
+    }
+});
+
+// Delete Info Message
+app.post('/jam3ya/info-messages/delete', requireJam3yaAdmin, (req, res) => {
+    const { id } = req.body;
+    jam3yaDb.run("DELETE FROM info_messages WHERE id = ?", [id], (err) => {
+        if (err) console.error("Info Message Delete Error:", err);
+        res.redirect('/jam3ya/dashboard?tab=info-messages');
+    });
+});
+
 // Add/Update Member
 app.post('/jam3ya/members/save', requireJam3yaAdmin, (req, res) => {
     const { id, member_code, name, nickname, phone, email, passcode, is_active, notes, is_admin } = req.body;
@@ -1561,6 +973,66 @@ app.post('/jam3ya/subjects/add', requireJam3yaAdmin, (req, res) => {
     });
 });
 
+app.post('/jam3ya/obligations/add', requireJam3yaAdmin, (req, res) => {
+    const { subject, description, notes, total_amount } = req.body;
+    const amount = parseFloat(total_amount);
+
+    if (!subject || isNaN(amount) || amount <= 0) {
+        return res.status(400).send("Invalid obligation data");
+    }
+
+    let finalDescription = description || '';
+    const trimmedNotes = notes && typeof notes === 'string' ? notes.trim() : '';
+    if (trimmedNotes) {
+        if (finalDescription) {
+            finalDescription += '\n';
+        }
+        finalDescription += 'ملاحظات: ' + trimmedNotes;
+    }
+
+    jam3yaDb.run(
+        "INSERT INTO obligations (subject, description, total_amount) VALUES (?, ?, ?)",
+        [subject.trim(), finalDescription || null, amount],
+        (err) => {
+            if (err) {
+                console.error("Obligation Insert Error:", err);
+                return res.status(500).send("Error adding obligation");
+            }
+            res.redirect('/jam3ya/dashboard');
+        }
+    );
+});
+
+app.post('/jam3ya/obligations/edit', requireJam3yaAdmin, (req, res) => {
+    const { id, subject, description, notes, total_amount } = req.body;
+    const amount = parseFloat(total_amount);
+
+    if (!id || !subject || isNaN(amount) || amount <= 0) {
+        return res.status(400).send("Invalid obligation data");
+    }
+
+    let finalDescription = description || '';
+    const trimmedNotes = notes && typeof notes === 'string' ? notes.trim() : '';
+    if (trimmedNotes) {
+        if (finalDescription) {
+            finalDescription += '\n';
+        }
+        finalDescription += 'ملاحظات: ' + trimmedNotes;
+    }
+
+    jam3yaDb.run(
+        "UPDATE obligations SET subject = ?, description = ?, total_amount = ? WHERE id = ?",
+        [subject.trim(), finalDescription || null, amount, id],
+        (err) => {
+            if (err) {
+                console.error("Obligation Update Error:", err);
+                return res.status(500).send("Error updating obligation");
+            }
+            res.redirect('/jam3ya/dashboard');
+        }
+    );
+});
+
 // Edit Subject
 app.post('/jam3ya/subjects/edit', requireJam3yaAdmin, (req, res) => {
     const { id, name, old_name } = req.body;
@@ -1605,6 +1077,8 @@ app.post('/jam3ya/reminders/send', requireJam3yaAdmin, async (req, res) => {
         res.redirect('/jam3ya/dashboard?error=reminder_failed&tab=unpaid');
     }
 });
+
+*/
 
 app.get('/login', (req, res) => res.render('login', { title: 'تسجيل الدخول', error: null }));
 app.get('/register', (req, res) => res.render('register', { title: 'إنشاء حساب جديد', error: null }));
@@ -2473,6 +1947,144 @@ app.delete('/admin/categories/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ success: false, message: 'خطأ في الخادم.' });
     }
 });
+
+/////////////////////////////////////////////////GPT PART START////
+app.post('/chat', async (req, res) => {
+  try {
+    await runSequence(req, res);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api', (req, res) => {
+  res.json('jam3ya-gpt is up');
+});
+
+async function askQuestion(req, res) {
+  let url =
+    `https://dbc-780790af-3e53.cloud.databricks.com/api/2.0/genie/spaces/` + process.env.GPT_SPACE_ID;
+
+  if (req.body.conversationId === '') {
+    url += `/start-conversation`;
+  } else {
+    url += `/conversations/` + req.body.conversationId + `/messages`;
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.TOKEN}`
+    },
+    body: JSON.stringify({
+      content: String(req.body.message)
+    })
+  });
+
+  return response.json();
+}
+
+async function getAnswer(dataFrom1) {
+  while (true) {
+    const response = await fetch(
+      `https://dbc-780790af-3e53.cloud.databricks.com/api/2.0/genie/spaces/${dataFrom1.space_id}/conversations/${dataFrom1.conversation_id}/messages/${dataFrom1.message_id}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.TOKEN}`
+        }
+      }
+    );
+
+    const data = await response.json();
+    if (data.status === 'COMPLETED' || data.status === 'FAILED') {
+      return data;
+    }
+
+    await new Promise(r => setTimeout(r, 100));
+  }
+}
+
+async function getSqlData(statementId) {
+  while (true) {
+    const response = await fetch(
+      `https://dbc-780790af-3e53.cloud.databricks.com/api/2.0/sql/statements/${statementId}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.TOKEN}`
+        }
+      }
+    );
+
+    const data = await response.json();
+    if (data.status.state === 'SUCCEEDED') return data;
+
+    await new Promise(r => setTimeout(r, 100));
+  }
+}
+
+async function runSequence(req, res) {
+  const serverResponse = new ServerResponse();
+
+  let result1 = await askQuestion(req, res);
+  if (result1?.message) result1 = result1.message;
+
+  const result2 = await getAnswer(result1);
+  
+  const attachments = result2.attachments || [];
+
+  const desc = attachments.find(a => a.query?.description);
+  if (desc) serverResponse.sqlDes = desc.query.description;
+
+  const textWithoutId = attachments.filter(a => a?.text?.content && !a?.attachment_id).map(a => a.text.content);
+
+  let textWithId =[];  
+  textWithId = attachments
+  .filter(a => a?.text?.content && a?.attachment_id).map(a => ({
+    id: a.attachment_id,
+    content: a.text.content
+  }));
+
+  if(result2.status === 'COMPLETED')
+    serverResponse.content = textWithoutId;
+  else
+    serverResponse.content = ['أرجو إعادة صياغة السؤال.'];
+
+  if(textWithId.length > 0)
+    serverResponse.contentQues = textWithId[0].content;
+
+  const suggested = attachments.find(a => a.suggested_questions);
+  if (suggested)
+    serverResponse.suggestedQuestions = suggested.suggested_questions.questions;
+
+  const sql = attachments.find(a => a.query?.statement_id);
+  if (sql && result2.status === 'COMPLETED') {
+    serverResponse.table = await getSqlData(sql.query.statement_id);
+  }
+
+  serverResponse.created_timestamp = new Date(
+    result2.created_timestamp
+  ).toLocaleTimeString('en-US', { timeZone: 'Asia/Muscat' });
+
+  serverResponse.conversation_id = result2.conversation_id;
+  serverResponse.message_id = result2.message_id;
+
+  res.json({ reply: serverResponse });
+}
+
+class ServerResponse {
+  created_timestamp;
+  conversation_id;
+  message_id;
+  content;
+  contentQues;
+  sqlDes;
+  suggestedQuestions;
+  table;
+}
+/////////////////////////////////////////////////GPT PART END//////
 
 // معالج 404
 app.use((req, res) => {

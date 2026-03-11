@@ -84,6 +84,54 @@
         .tab-content.active { display: block; }
         .tab-btn i { margin-left: 8px; }
 
+        .accordion-btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: right;
+            font-size: 1rem;
+            font-family: inherit;
+            color: var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        .accordion-btn:hover {
+            background: var(--bg-soft-primary);
+        }
+        .accordion-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        .accordion-content {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            padding: 16px;
+            margin-top: -10px;
+            margin-bottom: 10px;
+        }
+        .accordion-content.active {
+            display: block;
+        }
+        .accordion-btn .accordion-icon {
+            transition: transform 0.3s;
+        }
+        .accordion-btn.active .accordion-icon {
+            transform: rotate(180deg);
+        }
+
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; text-align: right; border-bottom: 1px solid var(--border); }
         th { background: var(--table-header); color: var(--primary); }
@@ -202,6 +250,7 @@
             <div class="header-actions">
                 <button id="themeToggle" class="btn btn-outline" onclick="toggleTheme()">🌓 الوضع</button>
                 <button onclick="showAddTransactionModal()" class="btn btn-success"><i class="fa-solid fa-plus"></i>تسجيل عملية مالية</button>
+                <button onclick="showAddObligationModal()" class="btn btn-secondary"><i class="fa-solid fa-file-invoice-dollar"></i>إضافة التزام</button>
                 <a href="/jam3ya" class="btn btn-outline"><i class="fa-solid fa-eye"></i>عرض الموقع</a>
                 <a href="/jam3ya/logout" class="btn btn-danger"><i class="fa-solid fa-right-from-bracket"></i>تسجيل خروج</a>
                 <form method="POST" action="/jam3ya/reminders/send" style="display:inline;">
@@ -217,6 +266,7 @@
             <button class="tab-btn" onclick="openTab('unpaid')"><i class="fa-solid fa-clock" style="margin-left:8px;"></i>المتأخرين عن الدفع</button>
             <button class="tab-btn" onclick="openTab('paymentReport')"><i class="fa-solid fa-calendar-check" style="margin-left:8px;"></i>تقرير الدفع بالسنوات</button>
             <button class="tab-btn" onclick="openTab('visitors')"><i class="fa-solid fa-globe" style="margin-left:8px;"></i>سجل الزوار</button>
+            <button class="tab-btn" onclick="openTab('info-messages')"><i class="fa-solid fa-bullhorn" style="margin-left:8px;"></i>رسائل المعلومات</button>
         </div>
 
         <!-- Members Tab -->
@@ -335,20 +385,27 @@
             <!-- Global Summary Table -->
             <div class="table-container" style="margin-bottom: 20px;">
                 <h3 style="padding: 0 15px; margin-bottom: 10px; color: var(--primary);">الملخص العام للجمعية</h3>
+                <% 
+                    let totalObligationsRemaining = 0;
+                    if (Array.isArray(obligations)) {
+                        obligations.forEach(function(o) {
+                            if (o && typeof o.remaining_amount === 'number') {
+                                totalObligationsRemaining += o.remaining_amount;
+                            }
+                        });
+                    }
+                %>
                 <table style="min-width: auto; width: 100%;">
                     <thead>
                         <tr>
-                            <th style="text-align: center; background: var(--bg-soft-primary); color: var(--primary);">الرصيد الابتدائي</th>
                             <th style="text-align: center; background: var(--bg-soft-success); color: var(--secondary);">مجموع الإيداعات</th>
                             <th style="text-align: center; background: var(--bg-soft-danger); color: var(--danger);">مجموع المصروفات</th>
                             <th style="text-align: center; background: var(--bg-soft-primary); color: var(--primary);">الرصيد الحالي</th>
+                            <th style="text-align: center; background: var(--bg-soft-warning); color: var(--danger);">إجمالي الالتزامات المتبقية</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--primary);">
-                                <%= mainData.initialBalance.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
-                            </td>
                             <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--secondary);">
                                 <%= mainData.totalIncome.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
                             </td>
@@ -358,21 +415,33 @@
                             <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--primary);">
                                 <%= mainData.currentBalance.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
                             </td>
+                            <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--danger);">
+                                <%= totalObligationsRemaining.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) %> <small style="font-size: 0.8rem;">ر.ع</small>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3><i class="fa-solid fa-list" style="margin-left:8px;"></i>سجل العمليات التفصيلي</h3>
-                <button class="btn btn-success" onclick="showAddTransactionModal()"><i class="fa-solid fa-plus" style="margin-left:6px;"></i>تسجيل عملية مالية</button>
-            </div>
-            <div class="export-actions">
-                <button class="btn btn-success" onclick="exportWithChoice('excel')"><i class="fa-solid fa-file-excel"></i>تصدير اكسل</button>
-                <button class="btn btn-outline" onclick="exportWithChoice('pdf')"><i class="fa-solid fa-file-pdf"></i>تصدير PDF</button>
-            </div>
-            <div class="table-container">
-            <table class="transactions-table table-fit">
+            <button class="accordion-btn" style="margin-top: 10px;" onclick="toggleAccordion('admin-transactions-log')">
+                <span><i class="fa-solid fa-list" style="margin-left:8px;"></i>سجل العمليات التفصيلي</span>
+                <i class="fa-solid fa-chevron-down accordion-icon"></i>
+            </button>
+            <div id="admin-transactions-log" class="accordion-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                    <h3 style="margin: 0;">العمليات</h3>
+                    <button class="btn btn-success" onclick="showAddTransactionModal()"><i class="fa-solid fa-plus" style="margin-left:6px;"></i>تسجيل عملية مالية</button>
+                </div>
+                <div class="export-actions">
+                    <button class="btn btn-success" onclick="exportWithChoice('excel')"><i class="fa-solid fa-file-excel"></i>تصدير اكسل</button>
+                    <button class="btn btn-outline" onclick="exportWithChoice('pdf')"><i class="fa-solid fa-file-pdf"></i>تصدير PDF</button>
+                </div>
+                <div style="margin: 10px 0; display:flex; gap:10px; flex-wrap:wrap;">
+                    <button type="button" id="btnLast3Months" class="btn btn-outline" onclick="filterTransactionsRange('last3')">آخر ٣ أشهر</button>
+                    <button type="button" id="btnAllTransactions" class="btn btn-outline" onclick="filterTransactionsRange('all')">كل العمليات</button>
+                </div>
+                <div class="table-container">
+                <table class="transactions-table table-fit">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -385,11 +454,11 @@
                         <th>إجراءات</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="transactionsTableBody">
                     <% transactions.forEach(t => { %>
-                    <tr>
+                    <tr data-date="<%= t.date || '' %>">
                         <td style="font-weight: bold; color: var(--text-muted);"><%= t.id %></td>
-                        <td><%= t.date ? new Date(t.date).toLocaleDateString('en-GB') : '-' %></td>
+                        <td><%= t.date ? t.date.split('-').reverse().join('/') : '-' %></td>
                         <td><%= t.subject %></td>
                         <td>
                             <% if (t.isMember) { %>
@@ -425,6 +494,66 @@
                 </tbody>
             </table>
             </div>
+            </div>
+        </div>
+
+        <button class="accordion-btn" style="margin-top: 30px;" onclick="toggleAccordion('admin-obligations-log')">
+            <span><i class="fa-solid fa-file-invoice-dollar" style="margin-left:8px;"></i>سجل الالتزامات (الديون)</span>
+            <i class="fa-solid fa-chevron-down accordion-icon"></i>
+        </button>
+        <div id="admin-obligations-log" class="accordion-content">
+            <h3>الالتزامات (الديون)</h3>
+            <% if (obligations && obligations.length > 0) { %>
+                <div class="table-container">
+                    <table class="table-fit payments-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>الموضوع</th>
+                                <th>الوصف</th>
+                                <th>إجمالي الالتزام</th>
+                                <th>المدفوع</th>
+                                <th>المتبقي</th>
+                                <th>الحالة</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% obligations.forEach((o, index) => { %>
+                                <tr>
+                                    <td data-label="#"><%= index + 1 %></td>
+                                    <td data-label="الموضوع"><%= o.subject %></td>
+                                    <td data-label="الوصف"><%= o.description || '-' %></td>
+                                    <td data-label="إجمالي الالتزام" class="amount-out"><%= o.total_amount.toFixed(3) %></td>
+                                    <td data-label="المدفوع" class="amount-in"><%= o.paid_amount.toFixed(3) %></td>
+                                    <td data-label="المتبقي" class="<%= o.remaining_amount > 0 ? 'amount-out' : 'amount-in' %>"><%= o.remaining_amount.toFixed(3) %></td>
+                                    <td data-label="الحالة">
+                                        <% if (o.status === 'open') { %>
+                                            مفتوح
+                                        <% } else if (o.status === 'partial') { %>
+                                            جزئي
+                                        <% } else { %>
+                                            مسدد بالكامل
+                                        <% } %>
+                                    </td>
+                                    <td data-label="إجراءات" style="white-space: nowrap;">
+                                        <button class="btn btn-warning" style="padding: 4px 8px; font-size: 0.8rem;"
+                                            onclick="openEditObligationModal(this)"
+                                            data-id="<%= o.id %>"
+                                            data-subject="<%= o.subject %>"
+                                            data-description="<%= (o.description || '').replace(/"/g, '&quot;') %>"
+                                            data-total="<%= o.total_amount.toFixed(3) %>">
+                                            تعديل
+                                        </button>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            <% } else { %>
+                <p style="color: var(--text-muted); margin-top: 10px;">لا توجد التزامات مسجلة حالياً.</p>
+            <% } %>
         </div>
 
         <!-- Subjects Tab -->
@@ -477,7 +606,18 @@
                 <button class="btn btn-primary" onclick="saveTemplate()">حفظ النموذج</button>
             </div>
 
-            <h3>قائمة الأعضاء المتأخرين عن الدفع (مساهمة السنة الحالية)</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3>قائمة الأعضاء المتأخرين عن الدفع</h3>
+                <form action="/jam3ya/dashboard" method="GET" style="margin: 0; display: flex; align-items: center;">
+                    <input type="hidden" name="tab" value="unpaid">
+                    <label for="unpaid_year" style="margin-left: 10px; margin-bottom: 0;">السنة:</label>
+                    <select name="unpaid_year" id="unpaid_year" onchange="this.form.submit()" style="padding: 5px; border-radius: 4px; border: 1px solid var(--border); width: auto; background-color: var(--input-bg); color: var(--input-text);">
+                        <% sortedYears.forEach(year => { %>
+                            <option value="<%= year %>" <%= (typeof targetYear !== 'undefined' && targetYear == year) ? 'selected' : '' %>><%= year %></option>
+                        <% }) %>
+                    </select>
+                </form>
+            </div>
             <div class="table-container">
             <table class="table-fit unpaid-table">
                 <thead>
@@ -521,6 +661,54 @@
                 <button class="btn btn-success" onclick="chooseExportMode('names')"><i class="fa-solid fa-user"></i> بالأسماء الحقيقية</button>
                 <button class="btn btn-outline" onclick="chooseExportMode('codes')"><i class="fa-solid fa-hashtag"></i> بالأرقام فقط</button>
             </div>
+        </div>
+    </div>
+    
+    <!-- Info Messages Tab -->
+    <div id="info-messages" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3>رسائل المعلومات للزوار</h3>
+            <button class="btn btn-success" onclick="showAddInfoMessageModal()">+ إضافة رسالة</button>
+        </div>
+        <div class="table-container">
+            <table class="table-fit">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">#</th>
+                        <th style="width: 250px;">الرسالة</th>
+                        <th style="width: 100px; text-align: center;">عرض حتى تاريخ</th>
+                        <th style="width: 100px; text-align: center;">تاريخ الإنشاء</th>
+                        <th style="width: 100px; text-align: center;">إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (typeof infoMessages !== 'undefined' && infoMessages.length > 0) { %>
+                        <% infoMessages.forEach(function(msg) { %>
+                            <tr>
+                                <td style="text-align: center;"><%= msg.id %></td>
+                                <td style="white-space: pre-wrap;"><%= msg.message %></td>
+                                <td style="text-align: center;"><%= msg.display_until ? new Date(msg.display_until).toLocaleDateString('en-CA') : '-' %></td>
+                                <td style="text-align: center;"><%= new Date(msg.created_at).toLocaleDateString('ar-EG') %></td>
+                                <td style="text-align: center;">
+                                    <button class="btn btn-primary" style="padding: 5px 10px; font-size: 0.9rem;" onclick="editInfoMessage(<%= JSON.stringify(msg) %>)">
+                                        <i class="fa-solid fa-pen-to-square" style="margin:0;"></i>
+                                    </button>
+                                    <form action="/jam3ya/info-messages/delete" method="POST" style="display:inline;" onsubmit="return confirm('هل أنت متأكد من حذف هذه الرسالة؟');">
+                                        <input type="hidden" name="id" value="<%= msg.id %>">
+                                        <button type="submit" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;">
+                                            <i class="fa-solid fa-trash" style="margin:0;"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">لا توجد رسائل حالياً</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -749,8 +937,95 @@
                     cell.textContent = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-US');
                 }
             });
+
+            // Check for tab parameter in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabParam = urlParams.get('tab');
+            if (tabParam) {
+                openTab(tabParam);
+            } else if (urlParams.has('unpaid_year')) {
+                openTab('unpaid');
+            } else {
+                openTab('transactions');
+            }
+
+            filterTransactionsRange('last3');
         });
     </script>
+
+    <div id="obligationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>إضافة التزام جديد</h3>
+                <span class="close" onclick="closeModal('obligationModal')">&times;</span>
+            </div>
+            <form action="/jam3ya/obligations/add" method="POST">
+                <div class="form-group">
+                    <label>الموضوع</label>
+                    <div id="quick-obligation-subjects" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <% if (typeof activeSubjects !== 'undefined' && activeSubjects.length > 0) { %>
+                            <% activeSubjects.forEach(sub => { %>
+                                <button type="button" class="btn btn-outline" onclick="selectObligationSubject('<%= sub %>')"><%= sub %></button>
+                            <% }) %>
+                        <% } %>
+                    </div>
+                    <select name="subject" id="obligation_subject" required>
+                        <option value="">-- اختر الموضوع --</option>
+                        <% subjects.forEach(s => { %>
+                            <option value="<%= s.name %>"><%= s.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>الوصف</label>
+                    <textarea name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات</label>
+                    <textarea name="notes" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>إجمالي الالتزام</label>
+                    <input type="number" name="total_amount" step="0.001" min="0.001" required>
+                </div>
+                <button type="submit" class="btn btn-success" style="width: 100%">حفظ الالتزام</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="editObligationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تعديل التزام</h3>
+                <span class="close" onclick="closeModal('editObligationModal')">&times;</span>
+            </div>
+            <form action="/jam3ya/obligations/edit" method="POST">
+                <input type="hidden" name="id" id="edit_obligation_id">
+                <div class="form-group">
+                    <label>الموضوع</label>
+                    <select name="subject" id="edit_obligation_subject" required>
+                        <option value="">-- اختر الموضوع --</option>
+                        <% subjects.forEach(s => { %>
+                            <option value="<%= s.name %>"><%= s.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>الوصف</label>
+                    <textarea name="description" id="edit_obligation_description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات</label>
+                    <textarea name="notes" id="edit_obligation_notes" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>إجمالي الالتزام</label>
+                    <input type="number" name="total_amount" id="edit_obligation_total" step="0.001" min="0.001" required>
+                </div>
+                <button type="submit" class="btn btn-warning" style="width: 100%">حفظ التعديلات</button>
+            </form>
+        </div>
+    </div>
 
     <!-- Add Subject Modal -->
     <div id="subjectModal" class="modal">
@@ -808,7 +1083,73 @@
         </div>
     </div>
 
+    <!-- Add/Edit Info Message Modal -->
+    <div id="infoMessageModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="infoMessageModalTitle">إضافة رسالة جديدة</h2>
+                <span class="close" onclick="closeInfoMessageModal()">&times;</span>
+            </div>
+            <form id="infoMessageForm" action="/jam3ya/info-messages/save" method="POST">
+                <input type="hidden" id="info_msg_id" name="id">
+                <div class="form-group">
+                    <label for="info_message">الرسالة</label>
+                    <textarea id="info_message" name="message" required style="min-height: 120px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="info_display_until">عرض حتى تاريخ</label>
+                    <input type="date" id="info_display_until" name="display_until" required>
+                    <small style="color: var(--text-muted);">لن تظهر الرسالة للزوار بعد هذا التاريخ</small>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">حفظ</button>
+            </form>
+        </div>
+    </div>
+
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+            if (tab && document.getElementById(tab)) {
+                openTab(tab);
+            }
+        });
+
+        function showAddInfoMessageModal() {
+            document.getElementById('infoMessageModal').style.display = 'flex';
+            document.getElementById('infoMessageForm').reset();
+            document.getElementById('info_msg_id').value = '';
+            document.getElementById('infoMessageModalTitle').innerText = 'إضافة رسالة جديدة';
+            // Set default date to today + 7 days
+            const date = new Date();
+            date.setDate(date.getDate() + 7);
+            document.getElementById('info_display_until').valueAsDate = date;
+        }
+
+        function editInfoMessage(msg) {
+            document.getElementById('infoMessageModal').style.display = 'flex';
+            document.getElementById('info_msg_id').value = msg.id;
+            document.getElementById('info_message').value = msg.message;
+            
+            // Format date for input type="date" (YYYY-MM-DD)
+            let dateStr = '';
+            if (msg.display_until) {
+                // If it's a full ISO string, split by T
+                if (typeof msg.display_until === 'string' && msg.display_until.includes('T')) {
+                    dateStr = msg.display_until.split('T')[0];
+                } else {
+                    dateStr = msg.display_until;
+                }
+            }
+            document.getElementById('info_display_until').value = dateStr;
+            
+            document.getElementById('infoMessageModalTitle').innerText = 'تعديل الرسالة';
+        }
+
+        function closeInfoMessageModal() {
+            document.getElementById('infoMessageModal').style.display = 'none';
+        }
+
         function showDeleteConfirm(type, id, message) {
             document.getElementById('deleteType').value = type;
             document.getElementById('deleteId').value = id;
@@ -871,7 +1212,7 @@
                     const tr = document.createElement('tr');
                     
                     const dateCell = document.createElement('td');
-                    dateCell.innerText = t.date ? new Date(t.date).toLocaleDateString('en-GB') : '-';
+                    dateCell.innerText = t.date ? t.date.split('-').reverse().join('/') : '-';
                     tr.appendChild(dateCell);
 
                     const subjectCell = document.createElement('td');
@@ -916,18 +1257,38 @@
             document.getElementById('transaction_subject').style.display = 'block';
         }
 
+        function toggleAccordion(id) {
+            const content = document.getElementById(id);
+            if (!content) return;
+            const btn = document.querySelector(`button.accordion-btn[onclick*="${id}"]`);
+            const isActive = content.classList.contains('active');
+            if (isActive) {
+                content.classList.remove('active');
+                if (btn) btn.classList.remove('active');
+            } else {
+                document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.accordion-btn').forEach(b => b.classList.remove('active'));
+                content.classList.add('active');
+                if (btn) btn.classList.add('active');
+            }
+        }
+
         function openTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            // Find the button that called this function and activate it
-            // If called from onclick, event.target is the button (or icon inside)
-            // If called programmatically, we might need to handle it.
-            if (event && event.target) {
-                // If click was on icon, get parent button
-                let target = event.target;
-                if (target.tagName === 'I') target = target.parentElement;
-                target.classList.add('active');
+            const tabContent = document.getElementById(tabName);
+            if (tabContent) {
+                tabContent.classList.add('active');
+            }
+            
+            // Find the button corresponding to this tab
+            const btn = document.querySelector(`button[onclick="openTab('${tabName}')"]`);
+            if (btn) {
+                btn.classList.add('active');
+            }
+
+            if (tabName === 'transactions') {
+                filterTransactionsRange('last3');
             }
         }
 
@@ -1084,6 +1445,49 @@
             } 
         }
 
+        function filterTransactionsRange(mode) {
+            const tbody = document.getElementById('transactionsTableBody');
+            if (!tbody) return;
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const now = new Date();
+            const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+            rows.forEach(row => {
+                const dateStr = row.getAttribute('data-date');
+                if (!dateStr) {
+                    row.style.display = mode === 'all' ? '' : 'none';
+                    return;
+                }
+                const parts = dateStr.split('-');
+                let rowDate = null;
+                if (parts.length === 3) {
+                    const y = parseInt(parts[0], 10);
+                    const m = parseInt(parts[1], 10) - 1;
+                    const d = parseInt(parts[2], 10);
+                    rowDate = new Date(y, m, d);
+                }
+                if (!rowDate || isNaN(rowDate.getTime())) {
+                    row.style.display = mode === 'all' ? '' : 'none';
+                    return;
+                }
+                if (mode === 'all') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = rowDate >= threeMonthsAgo ? '' : 'none';
+                }
+            });
+            const btnLast = document.getElementById('btnLast3Months');
+            const btnAll = document.getElementById('btnAllTransactions');
+            if (btnLast && btnAll) {
+                if (mode === 'all') {
+                    btnAll.classList.add('btn-primary');
+                    btnLast.classList.remove('btn-primary');
+                } else {
+                    btnLast.classList.add('btn-primary');
+                    btnAll.classList.remove('btn-primary');
+                }
+            }
+        }
+
         function filterMembers() {
             const tbody = document.getElementById('membersTableBody');
             const codeVal = (document.getElementById('filter_code').value || '').trim().toLowerCase();
@@ -1194,6 +1598,46 @@
                 window.scrollTo(0, parseInt(scrollPos));
                 sessionStorage.removeItem('jam3ya_scroll_pos'); 
             }
+
+            const obligationSelect = document.getElementById('obligation_id');
+            if (obligationSelect) {
+                obligationSelect.addEventListener('change', function () {
+                    const selected = this.options[this.selectedIndex];
+                    if (!selected || !selected.value) return;
+
+                    const subj = selected.getAttribute('data-subject') || '';
+                    const desc = selected.getAttribute('data-description') || '';
+                    const notes = selected.getAttribute('data-notes') || '';
+
+                    const subjectSelect = document.getElementById('transaction_subject');
+                    if (subjectSelect && subj) {
+                        for (let i = 0; i < subjectSelect.options.length; i++) {
+                            if (subjectSelect.options[i].value === subj) {
+                                subjectSelect.selectedIndex = i;
+                                break;
+                            }
+                        }
+                        if (typeof toggleTransactionFields === 'function') {
+                            toggleTransactionFields();
+                        }
+                        const quickButtons = document.querySelectorAll('#quick-subjects .btn-outline');
+                        quickButtons.forEach(btn => {
+                            btn.classList.remove('active');
+                            if (btn.innerText === subj) btn.classList.add('active');
+                        });
+                    }
+
+                    const descInput = document.getElementById('transaction_description');
+                    if (descInput) {
+                        descInput.value = desc;
+                    }
+
+                    const detailsTextarea = document.querySelector('#addTransactionModal textarea[name=\"details\"]');
+                    if (detailsTextarea) {
+                        detailsTextarea.value = notes;
+                    }
+                });
+            }
         });
 
         // Add listener to all forms to save scroll position
@@ -1225,6 +1669,46 @@
         confirmDeleteTransaction = function(id) {
             sessionStorage.setItem('jam3ya_scroll_pos', window.scrollY);
             originalConfirmDeleteTransaction(id);
+        }
+
+        function showAddObligationModal() {
+            document.getElementById('obligationModal').style.display = 'flex';
+        }
+
+        function openEditObligationModal(btn) {
+            const id = btn.getAttribute('data-id');
+            const subject = btn.getAttribute('data-subject') || '';
+            const fullDescription = btn.getAttribute('data-description') || '';
+            const total = btn.getAttribute('data-total') || '';
+
+            let baseDescription = fullDescription;
+            let notes = '';
+            const notesIndex = fullDescription.indexOf('ملاحظات:');
+            if (notesIndex !== -1) {
+                baseDescription = fullDescription.substring(0, notesIndex).trim();
+                notes = fullDescription.substring(notesIndex + 'ملاحظات:'.length).trim();
+            }
+
+            document.getElementById('edit_obligation_id').value = id;
+            const subjSelect = document.getElementById('edit_obligation_subject');
+            if (subjSelect) {
+                subjSelect.value = subject;
+            }
+            document.getElementById('edit_obligation_description').value = baseDescription;
+            document.getElementById('edit_obligation_notes').value = notes;
+            document.getElementById('edit_obligation_total').value = parseFloat(total || '0');
+
+            document.getElementById('editObligationModal').style.display = 'flex';
+        }
+
+        function selectObligationSubject(val) {
+            const select = document.getElementById('obligation_subject');
+            if (!select) return;
+            select.value = val;
+            document.querySelectorAll('#quick-obligation-subjects .btn-outline').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.innerText === val) btn.classList.add('active');
+            });
         }
 
         function showAddSubjectModal() {
@@ -1443,6 +1927,34 @@
                 <div class="form-group">
                     <label>التاريخ:</label>
                     <input type="date" name="date" required value="<%= new Date().toISOString().split('T')[0] %>">
+                </div>
+
+                <div class="form-group">
+                    <label>ربط العملية بالتزام (اختياري):</label>
+                    <select name="obligation_id" id="obligation_id">
+                        <option value="">-- بدون ربط --</option>
+                        <% if (obligations && obligations.length > 0) { %>
+                            <% obligations.forEach(o => { 
+                                   const rawDesc = o.description || '';
+                                   const lines = rawDesc.split('\n');
+                                   const baseDesc = (lines[0] || '').trim();
+                                   const notesLine = lines.find(l => l.trim().startsWith('ملاحظات:')) || '';
+                                   const notesText = notesLine.replace(/^ملاحظات:\s*/,'').trim();
+                                   const displayDesc = [baseDesc, notesText].filter(Boolean).join(' | ');
+                                   const shortDesc = displayDesc.length > 40 ? (displayDesc.substring(0, 40) + '...') : displayDesc;
+                            %>
+                                <option 
+                                    value="<%= o.id %>" 
+                                    data-subject="<%= o.subject %>" 
+                                data-description="<%= baseDesc %>" 
+                                data-notes="<%= notesText %>">
+                                    <%= o.subject %>
+                                    <% if (shortDesc) { %> - البند: <%= shortDesc %><% } %>
+                                    - المتبقي: <%= o.remaining_amount.toFixed(3) %>
+                                </option>
+                            <% }) %>
+                        <% } %>
+                    </select>
                 </div>
 
                 <div class="form-group">

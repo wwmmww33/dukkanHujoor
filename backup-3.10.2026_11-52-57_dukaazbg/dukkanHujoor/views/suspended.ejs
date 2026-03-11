@@ -1,0 +1,37 @@
+<main class="main-content">
+    <div class="auth-container fade-in">
+        <div class="form-card" style="max-width: 600px; text-align: center; border-left: 5px solid var(--error-color);">
+            <div class="form-header">
+                <h1 class="form-title" style="color: var(--error-color);">🛑 حسابك موقوف</h1>
+                <p class="form-subtitle">مرحباً <%= name %>,</p>
+            </div>
+            
+            <div style="margin: 2rem 0;">
+                <p>تم إيقاف حسابك مؤقتاً من قبل الإدارة.</p>
+                <p style="margin-bottom: 2rem;"><strong>السبب:</strong> <%= reason %></p>
+                <p>إذا كنت تعتقد أن هذا الإجراء تم عن طريق الخطأ، يمكنك التواصل معنا لمراجعة حالة حسابك.</p>
+            </div>
+            
+            <button onclick="contactAdmin()" class="btn btn-primary">
+                💬 تواصل مع الإدارة عبر واتساب
+            </button>
+        </div>
+    </div>
+</main>
+
+<script>
+async function contactAdmin() {
+    try {
+        const response = await fetch('/get-admin-whatsapp');
+        const data = await response.json();
+        if (data.success && data.number) {
+            const message = `مرحباً، أود الاستفسار بخصوص إيقاف حسابي.`;
+            window.open(`https://wa.me/${data.number}?text=${encodeURIComponent(message)}`, '_blank');
+        } else {
+            alert('عذراً، خدمة التواصل مع الإدارة غير متاحة حالياً.');
+        }
+    } catch (error) {
+        alert('حدث خطأ أثناء محاولة التواصل مع الإدارة.');
+    }
+}
+</script>

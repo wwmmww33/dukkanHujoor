@@ -1,0 +1,70 @@
+<main class="main-content">
+        <div class="auth-container fade-in">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">🔑 تسجيل الدخول</h1>
+            <p class="auth-subtitle">مرحباً بعودتك إلى دكان الحجور</p>
+        </div>
+        
+        <% if (error) { %>
+            <div class="alert alert-error">
+                <i class="error-icon">⚠️</i>
+                <%= error %>
+            </div>
+        <% } %>
+        
+        <form method="POST" action="/login" class="auth-form">
+            <div class="form-group">
+                <label for="phone" class="form-label">📱 رقم الهاتف</label>
+                <div style="position: relative;">
+                    <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #666; font-size: 14px; z-index: 1;">+968</span>
+                    <input type="tel" id="phone" name="phone" required 
+                           class="form-input"
+                           placeholder="99123456" 
+                           pattern="[0-9]{8}"
+                           maxlength="8"
+                           minlength="8"
+                           style="padding-left: 60px;"
+                           title="يرجى إدخال 8 أرقام فقط">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password" class="form-label">🔒 كلمة المرور</label>
+                <input type="password" id="password" name="password" required 
+                       class="form-input"
+                       placeholder="أدخل كلمة المرور">
+            </div>
+            
+          <button type="submit" class="submit-btn">تسجيل الدخول</button>
+        </form>
+        
+        <div class="auth-footer">
+            <p>ليس لديك حساب؟ <a href="/register" class="auth-link">إنشاء حساب جديد</a></p>
+            <p><a href="/forgot-password" class="auth-link">هل نسيت كلمة المرور؟</a></p>
+
+        </div>
+        
+
+    </div>
+</div>
+
+<script>
+    // تنسيق رقم الهاتف العماني أثناء الكتابة (8 أرقام فقط)
+    document.getElementById('phone').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, ''); // إزالة كل شيء عدا الأرقام
+        if (value.length > 8) {
+            value = value.substring(0, 8);
+        }
+        e.target.value = value;
+        
+        // التحقق من صحة الرقم العماني
+        if (value.length === 8) {
+            e.target.setCustomValidity('');
+        } else if (value.length > 0) {
+            e.target.setCustomValidity('يجب أن يكون رقم الهاتف 8 أرقام بالضبط');
+        }
+    });
+</script>
+        </div>
+    </main>

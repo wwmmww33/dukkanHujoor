@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <meta charset="UTF-8">
     <style>
         :root {
             --primary: #2c3e50;
@@ -95,6 +98,18 @@
             color: var(--primary); 
             white-space: nowrap;
         }
+
+        /* Fix for mobile scrolling: ensure table doesn't shrink too much */
+        .table-container table {
+            min-width: 100%;
+        }
+        
+        /* Ensure Details column has enough width */
+        /* Redundant block removed as width is now set directly in table definitions */
+        
+        .table-container th, .table-container td {
+            white-space: nowrap;
+        }
         tr:last-child td { border-bottom: none; }
         tr:hover { background: var(--table-hover); }
         
@@ -110,51 +125,100 @@
             color: var(--text);
         }
 
-        /* Tabs Styles */
-        .tabs {
-            display: flex;
+        /* Info Banner */
+        .info-banner {
+            background: var(--bg-soft-primary);
+            border: 1px solid var(--primary);
+            border-right: 5px solid var(--primary);
+            border-radius: 8px;
+            padding: 15px;
             margin-bottom: 20px;
-            border-bottom: 1px solid var(--border);
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            touch-action: pan-x;
+            animation: slideDown 0.3s ease-out;
+        }
+        .info-banner-title {
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+        }
+        .info-banner-content {
+            font-size: 1.05rem;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre-wrap;
+        }
+
+        /* Accordion Layout */
+        .accordion-container {
+            display: flex;
+            flex-direction: column;
             gap: 10px;
-            flex-wrap: nowrap;
-            align-items: flex-end;
         }
-        .tab-btn {
-            padding: 10px 20px;
+        .accordion-btn {
+            width: 100%;
+            padding: 15px 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
             cursor: pointer;
-            border: none;
-            background: none;
-            font-size: 1rem;
+            text-align: right;
+            font-size: 1.1rem;
             font-family: inherit;
-            color: var(--text-muted);
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-            flex: 0 0 auto;
-            white-space: nowrap;
+            color: var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            position: relative;
+            z-index: 2;
         }
-        .tab-btn.active {
-            color: var(--secondary);
-            border-bottom-color: var(--secondary);
-            font-weight: bold;
+        .accordion-btn:hover {
+            background: var(--bg-soft-primary);
         }
-        .tab-btn i { margin-left: 8px; }
-        .tab-btn.member-tab {
-            background: var(--bg-soft-warning);
-            color: var(--text-warning);
-            border-radius: 6px;
-            font-weight: bold;
+        .accordion-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
         }
-        .tab-btn.member-tab.active {
-            border-bottom-color: var(--text-warning);
-        }
-        .tab-content {
+        .accordion-content {
             display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            padding: 20px;
+            margin-top: -10px; /* Connect with button */
+            margin-bottom: 10px;
+            animation: slideDown 0.3s ease-out;
+            position: relative;
+            z-index: 1;
         }
-        .tab-content.active {
+        .accordion-content.active {
             display: block;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .accordion-btn .accordion-icon {
+            transition: transform 0.3s;
+        }
+        .accordion-btn.active .accordion-icon {
+            transform: rotate(180deg);
+        }
+        
+        .accordion-btn.member-tab {
+            border-right: 5px solid var(--secondary);
+        }
+        .accordion-btn.member-tab.active {
+            background: var(--secondary);
+            border-color: var(--secondary);
         }
 
         /* Alternating row colors */
@@ -171,8 +235,7 @@
         }
 
         @media (max-width: 600px) {
-            .tab-btn { padding: 8px 12px; font-size: 0.95rem; }
-            .tab-btn i { font-size: 0.95em; }
+            th, td { padding: 10px; }
         }
 
         /* Expense Card Styles */
@@ -206,26 +269,44 @@
         .table-fit th, .table-fit td { white-space: normal; vertical-align: middle; }
         
         .transactions-table { min-width: 1000px; }
-        .transactions-table th:nth-child(1), .transactions-table td:nth-child(1) { width: 50px; text-align: center; padding: 5px; }
-        .transactions-table th:nth-child(2), .transactions-table td:nth-child(2) { width: 110px; white-space: nowrap; }
-        .transactions-table th:nth-child(3), .transactions-table td:nth-child(3) { width: 150px; overflow-wrap: break-word; }
-        .transactions-table th:nth-child(4), .transactions-table td:nth-child(4) { width: 150px; overflow-wrap: break-word; }
-        .transactions-table th:nth-child(5), .transactions-table td:nth-child(5) { width: auto; overflow-wrap: break-word; }
-        .transactions-table th:nth-child(6), .transactions-table td:nth-child(6) { width: 110px; white-space: nowrap; }
-        .transactions-table th:nth-child(7), .transactions-table td:nth-child(7) { width: 120px; white-space: nowrap; }
+        .transactions-table th:nth-child(1), .transactions-table td:nth-child(1) { width: 60px; text-align: center; padding: 5px; }
+        .transactions-table th:nth-child(2), .transactions-table td:nth-child(2) { width: 120px; white-space: nowrap; }
+        .transactions-table th:nth-child(3), .transactions-table td:nth-child(3) { width: 160px; overflow-wrap: break-word; }
+        .transactions-table th:nth-child(4), .transactions-table td:nth-child(4) { width: 160px; overflow-wrap: break-word; }
+        .transactions-table th:nth-child(5), .transactions-table td:nth-child(5) { width: 200px; overflow-wrap: break-word; white-space: normal !important; line-height: 1.6; }
+        .transactions-table th:nth-child(6), .transactions-table td:nth-child(6) { width: 100px; white-space: nowrap; }
+        .transactions-table th:nth-child(7), .transactions-table td:nth-child(7) { width: 140px; white-space: nowrap; }
 
-        .payments-table { min-width: 700px; }
+        .payments-table { min-width: 600px; }
         .payments-table th:nth-child(1), .payments-table td:nth-child(1) { width: 50px; text-align: center; padding: 5px; }
         .payments-table th:nth-child(2), .payments-table td:nth-child(2) { width: 110px; white-space: nowrap; }
-        .payments-table th:nth-child(3), .payments-table td:nth-child(3) { width: auto; overflow-wrap: break-word; }
-        .payments-table th:nth-child(4), .payments-table td:nth-child(4) { width: 110px; white-space: nowrap; }
+        .payments-table th:nth-child(3), .payments-table td:nth-child(3) { width: 110px; white-space: nowrap; overflow-wrap: break-word; }
+        .payments-table th:nth-child(4), .payments-table td:nth-child(4) { width: 50px; white-space: nowrap; }
 
-        .subject-table { min-width: 900px; }
+        /* تحسين عرض جدول الالتزامات */
+        #obligations .payments-table th:nth-child(3),
+        #obligations .payments-table td:nth-child(3) {
+            width: auto;
+            max-width: 260px;
+            white-space: normal;
+            overflow-wrap: break-word;
+        }
+        #obligations .payments-table th:nth-child(4),
+        #obligations .payments-table th:nth-child(5),
+        #obligations .payments-table th:nth-child(6),
+        #obligations .payments-table td:nth-child(4),
+        #obligations .payments-table td:nth-child(5),
+        #obligations .payments-table td:nth-child(6) {
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .subject-table { min-width: 600px; }
         .subject-table th:nth-child(1), .subject-table td:nth-child(1) { width: 50px; text-align: center; padding: 5px; }
         .subject-table th:nth-child(2), .subject-table td:nth-child(2) { width: 110px; white-space: nowrap; }
         .subject-table th:nth-child(3), .subject-table td:nth-child(3) { width: 200px; overflow-wrap: break-word; }
-        .subject-table th:nth-child(4), .subject-table td:nth-child(4) { width: auto; overflow-wrap: break-word; }
-        .subject-table th:nth-child(5), .subject-table td:nth-child(5) { width: 110px; white-space: nowrap; }
+        .subject-table th:nth-child(4), .subject-table td:nth-child(4) { width: 100px; overflow-wrap: break-word; }
+        .subject-table th:nth-child(5), .subject-table td:nth-child(5) { width: 50px; white-space: nowrap; }
 
         @media (max-width: 600px) {
             th, td { padding: 10px; }
@@ -267,6 +348,119 @@
         .transactions-table th.sortable { cursor: pointer; user-select: none; }
         .transactions-table th .sort-icon { margin-left: 6px; color: var(--text-muted); }
         .transactions-table th.active .sort-icon { color: var(--secondary); }
+
+        /* Summary Grid Layout */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .summary-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .summary-label {
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+        .summary-value {
+            padding: 15px;
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface);
+        }
+        .summary-value small {
+            font-size: 0.8rem;
+            margin-right: 5px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 600px) {
+            .summary-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .summary-item.current-balance { order: 1; }
+            .summary-item.total-deposits { order: 2; }
+            .summary-item.total-expenses { order: 3; }
+            
+            .summary-label { padding: 10px 5px; font-size: 0.85rem; }
+            .summary-value { padding: 12px; font-size: 1.1rem; }
+        }
+        
+        #chat-widget { z-index: 999; position: fixed; bottom: 20px; right: 20px; width: 320px; max-height: 85vh; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; background: #fff; font-family: Arial, sans-serif; overflow: hidden; }
+        #chat-header {
+          background: #4A90E2;
+          color: white;
+          padding: 10px;
+          cursor: pointer;
+          font-weight: bold;
+        
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 6px; /* space between GPT and gif */
+        }
+        #chat-messages { flex: 1; padding: 10px; overflow-y: auto; display: none;}
+        #chat-input { display: none; border-top: 1px solid #ccc; }
+        #chat-input input { flex: 1; border: none; padding: 10px; outline: none; }
+        #chat-input button { border: none; padding: 10px; background: #4A90E2; color: white; cursor: pointer; }
+        .message { margin: 5px 0; padding: 8px 12px; border-radius: 15px; max-width: 100%; word-wrap: break-word; }
+        .message.user { background: #DCF8C6; align-self: flex-end; }
+        .message.bot { background: #F1F0F0; align-self: flex-start; }
+        #typing { font-style: italic; color: gray; margin: 5px; display: none; }
+        
+        #chat-export { display: none; border-top: 0px solid #ccc; justify-content: center;}
+        #chat-export button { border: none; padding: 10px; background: #f0b07a; color: rgb(13, 12, 12); cursor: pointer;}
+        
+        .accordion-gpt {
+          width: 100%;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+        }
+        .accordion-item-gpt {
+          border-bottom: 1px solid #ccc;
+        }
+        .accordion-header-gpt {
+          background-color: #f1f1f1;
+          cursor: pointer;
+          padding: 15px;
+          font-weight: bold;
+        }
+        .accordion-content-gpt {
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease;
+          padding: 0; /* ✅ */
+        }
+        .accordion-inner-gpt {
+          padding: 15px;
+        }
+        .accordion-content-gpt p {
+          margin: 15px 0;
+        }
+        .accordion-header-gpt.active {
+          background-color: #ddd;
+        }
     </style>
 </head>
 <body>
@@ -316,48 +510,120 @@
             </div>
         <% } %>
         
-        <!-- Global Summary Table -->
-        <div class="table-container" style="margin-bottom: 40px;">
-            <h3 style="padding: 0 15px; margin-bottom: 10px; color: var(--primary);">الملخص العام للجمعية</h3>
-            <table style="min-width: auto; width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="text-align: center; background: var(--bg-soft-primary); color: var(--primary);">الرصيد الابتدائي</th>
-                        <th style="text-align: center; background: var(--bg-soft-success); color: var(--secondary);">مجموع الإيداعات</th>
-                        <th style="text-align: center; background: var(--bg-soft-danger); color: var(--danger);">مجموع المصروفات</th>
-                        <th style="text-align: center; background: var(--bg-soft-primary); color: var(--primary);">الرصيد الحالي</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--primary);">
-                            <%= mainData.initialBalance.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
-                        </td>
-                        <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--secondary);">
-                            <%= mainData.totalIncome.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
-                        </td>
-                        <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--danger);">
-                            <%= mainData.totalExpense.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
-                        </td>
-                        <td style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--primary);">
-                            <%= mainData.currentBalance.toLocaleString('en-US') %> <small style="font-size: 0.8rem;">ر.ع</small>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        <% 
+        // Filter messages
+        let activeMsgs = [];
+        let archivedMsgs = [];
+        if (typeof infoMessages !== 'undefined' && infoMessages) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            infoMessages.forEach(msg => {
+                const displayUntil = msg.display_until ? new Date(msg.display_until) : null;
+                if (displayUntil) {
+                    displayUntil.setHours(0, 0, 0, 0);
+                    if (displayUntil >= today) {
+                        activeMsgs.push(msg);
+                    } else {
+                        archivedMsgs.push(msg);
+                    }
+                } else {
+                    // No date means always active? Or always archive? Assuming always active for now if no date, or handle as active.
+                    activeMsgs.push(msg);
+                }
+            });
+        }
+        %>
 
-        <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab-btn active" onclick="openTab(event, 'transactions')"><i class="fa-solid fa-list" style="margin-left:8px;"></i>سجل العمليات العام</button>
-            <button class="tab-btn" onclick="openTab(event, 'expenses')"><i class="fa-solid fa-chart-pie" style="margin-left:8px;"></i>تحليل المواضيع</button>
-            <% if (typeof isLoggedIn !== 'undefined' && isLoggedIn && memberData) { %>
-            <button class="tab-btn member-tab" onclick="openTab(event, 'my-payments')"><i class="fa-solid fa-wallet" style="margin-left:8px;"></i>مدفوعاتي</button>
+        <!-- Active Messages Banner -->
+        <% if (activeMsgs.length > 0) { %>
+            <div class="info-banner">
+                <div class="info-banner-title">
+                    <i class="fa-solid fa-bullhorn" style="margin-left: 8px;"></i>
+                    تنويه هام
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <% activeMsgs.forEach(function(msg) { %>
+                        <div class="info-banner-content"><%= msg.message %></div>
+                    <% }); %>
+                </div>
+            </div>
+        <% } %>
+
+        <div class="accordion-container">
+            <!-- Information Tab (Archives) -->
+            <% if (typeof infoMessages !== 'undefined' && infoMessages && infoMessages.length > 0) { %>
+            <button class="accordion-btn" onclick="toggleAccordion('info')">
+                <span><i class="fa-solid fa-circle-info" style="margin-left:8px;"></i>المعلومات والأرشيف</span>
+                <i class="fa-solid fa-chevron-down accordion-icon"></i>
+            </button>
+            <div id="info" class="accordion-content">
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <% infoMessages.forEach(function(msg) { 
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const displayUntil = msg.display_until ? new Date(msg.display_until) : null;
+                        const isActive = displayUntil && displayUntil >= today;
+                    %>
+                        <div style="background: var(--surface); border: 1px solid var(--border); border-right: 4px solid <%= isActive ? 'var(--secondary)' : 'var(--text-muted)' %>; border-radius: 8px; padding: 15px; opacity: <%= isActive ? '1' : '0.8' %>;">
+                            <div style="font-size: 1.05rem; line-height: 1.6; color: var(--text); white-space: pre-wrap;"><%= msg.message %></div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
             <% } %>
+
+            <!-- Summary Tab -->
+            <button class="accordion-btn active" onclick="toggleAccordion('summary')">
+                <span><i class="fa-solid fa-chart-line" style="margin-left:8px;"></i>الملخص العام</span>
+                <i class="fa-solid fa-chevron-down accordion-icon"></i>
+            </button>
+            <div id="summary" class="accordion-content active">
+            <h3 style="padding: 0 5px; margin-bottom: 15px; color: var(--primary);">الملخص العام للجمعية</h3>
+            <% 
+                let totalObligationsRemaining = 0;
+                if (Array.isArray(obligations)) {
+                    obligations.forEach(function(o) {
+                        if (o && typeof o.remaining_amount === 'number') {
+                            totalObligationsRemaining += o.remaining_amount;
+                        }
+                    });
+                }
+            %>
+            <div class="summary-grid">
+                <div class="summary-item total-deposits">
+                    <div class="summary-label" style="background: var(--bg-soft-success); color: var(--secondary);">مجموع الإيداعات</div>
+                    <div class="summary-value" style="color: var(--secondary);">
+                        <%= mainData.totalIncome.toLocaleString('en-US') %> <small>ر.ع</small>
+                    </div>
+                </div>
+                <div class="summary-item total-expenses">
+                    <div class="summary-label" style="background: var(--bg-soft-danger); color: var(--danger);">مجموع المصروفات</div>
+                    <div class="summary-value" style="color: var(--danger);">
+                        <%= mainData.totalExpense.toLocaleString('en-US') %> <small>ر.ع</small>
+                    </div>
+                </div>
+                <div class="summary-item current-balance">
+                    <div class="summary-label" style="background: var(--bg-soft-primary); color: var(--primary);">الرصيد الحالي</div>
+                    <div class="summary-value" style="color: var(--primary);">
+                        <%= mainData.currentBalance.toLocaleString('en-US') %> <small>ر.ع</small>
+                    </div>
+                </div>
+                <div class="summary-item obligations-total">
+                    <div class="summary-label" style="background: var(--bg-soft-warning); color: var(--danger);">إجمالي الالتزامات المتبقية</div>
+                    <div class="summary-value" style="color: var(--danger);">
+                        <%= totalObligationsRemaining.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) %> <small>ر.ع</small>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Global Transactions Tab -->
-        <div id="transactions" class="tab-content active">
+        <button class="accordion-btn" onclick="toggleAccordion('transactions')">
+            <span><i class="fa-solid fa-list" style="margin-left:8px;"></i>سجل العمليات العام</span>
+            <i class="fa-solid fa-chevron-down accordion-icon"></i>
+        </button>
+        <div id="transactions" class="accordion-content">
             <div class="table-container">
                 <table class="transactions-table table-fit">
                     <thead>
@@ -377,7 +643,7 @@
                             <td data-label="#">
                                 <span style="font-weight: bold; color: var(--text-muted);"><%= t.id %></span>
                             </td>
-                            <td data-label="التاريخ"><%= t.date || '-' %></td>
+                            <td data-label="التاريخ"><%= t.date ? t.date.split('-').reverse().join('/') : '-' %></td>
                             <td data-label="الموضوع"><%= t.subject %></td>
                             <td data-label="البند">
                                 <%
@@ -406,9 +672,62 @@
             </div>
         </div>
 
+        <!-- Obligations Tab -->
+        <% if (typeof obligations !== 'undefined' && obligations && obligations.length > 0) { %>
+        <button class="accordion-btn" onclick="toggleAccordion('obligations')">
+            <span><i class="fa-solid fa-file-invoice-dollar" style="margin-left:8px;"></i>التزامات الجمعية</span>
+            <i class="fa-solid fa-chevron-down accordion-icon"></i>
+        </button>
+        <div id="obligations" class="accordion-content">
+            <div style="margin-top: 10px;">
+                <h4 style="padding: 0 5px; margin-bottom: 10px; color: var(--primary);">الالتزامات (الديون) على الجمعية</h4>
+                <div class="table-container">
+                    <table class="transactions-table table-fit">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>الموضوع</th>
+                                <th>الوصف</th>
+                                <th>إجمالي الالتزام</th>
+                                <th>المدفوع</th>
+                                <th>المتبقي</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% obligations.forEach(function(o, index) { %>
+                                <tr>
+                                    <td data-label="#"><%= index + 1 %></td>
+                                    <td data-label="الموضوع"><%= o.subject %></td>
+                                    <td data-label="الوصف"><%= o.description || '-' %></td>
+                                    <td data-label="إجمالي الالتزام" class="amount-out"><%= o.total_amount.toFixed(3) %></td>
+                                    <td data-label="المدفوع" class="amount-in"><%= o.paid_amount.toFixed(3) %></td>
+                                    <td data-label="المتبقي" class="<%= o.remaining_amount > 0 ? 'amount-out' : 'amount-in' %>"><%= o.remaining_amount.toFixed(3) %></td>
+                                    <td data-label="الحالة">
+                                        <% if (o.status === 'open') { %>
+                                            مفتوح
+                                        <% } else if (o.status === 'partial') { %>
+                                            جزئي
+                                        <% } else { %>
+                                            مسدد بالكامل
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <% } %>
+
         <!-- My Payments Tab -->
         <% if (typeof isLoggedIn !== 'undefined' && isLoggedIn && memberData) { %>
-        <div id="my-payments" class="tab-content">
+        <button class="accordion-btn member-tab" onclick="toggleAccordion('my-payments')">
+            <span><i class="fa-solid fa-wallet" style="margin-left:8px;"></i>مدفوعاتي</span>
+            <i class="fa-solid fa-chevron-down accordion-icon"></i>
+        </button>
+        <div id="my-payments" class="accordion-content">
             <div class="expense-card" style="border-left: 5px solid var(--secondary);">
                 <div class="expense-header" style="background: var(--bg-soft-success);">
                     <div class="expense-title">ملخص مساهماتي</div>
@@ -426,7 +745,7 @@
                         <tr>
                             <th>#</th>
                             <th>التاريخ</th>
-                            <th>مساهمة عن سنة</th>
+                            <th>عن سنة</th>
                             <th>المبلغ</th>
                         </tr>
                     </thead>
@@ -436,8 +755,8 @@
                             <td data-label="#">
                                 <span style="font-weight: bold; color: var(--text-muted);"><%= t.id %></span>
                             </td>
-                            <td data-label="التاريخ"><%= t.date || '-' %></td>
-                            <td data-label="مساهمة عن سنة"><%= t.details || '-' %></td>
+                            <td data-label="التاريخ"><%= t.date ? t.date.split('-').reverse().join('/') : '-' %></td>
+                            <td data-label="عن سنة"><%= t.details || '-' %></td>
                             <td data-label="المبلغ" class="amount-in">
                                 <%= t.amount %>
                                 <% if (t.is_approved === 0) { %>
@@ -505,7 +824,11 @@
         <% } %>
 
         <!-- Subjects Analysis Tab -->
-        <div id="expenses" class="tab-content">
+        <button class="accordion-btn" onclick="toggleAccordion('expenses')">
+            <span><i class="fa-solid fa-layer-group" style="margin-left:8px;"></i>تصنيف العمليات</span>
+            <i class="fa-solid fa-chevron-down accordion-icon"></i>
+        </button>
+        <div id="expenses" class="accordion-content">
             <% if (mainData.subjectsList && mainData.subjectsList.length > 0) { %>
                 <% mainData.subjectsList.forEach((group, index) => { %>
                 <div class="expense-card">
@@ -513,7 +836,7 @@
                     <div class="expense-title">
                         <span class="toggle-icon" id="icon-details-<%= index %>" style="display: inline-block; width: 20px; transition: transform 0.3s;">▶</span> 
                         <%= group.name %> 
-                        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(آخر تحديث: <%= group.lastDate || 'غير متوفر' %>)</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(آخر تحديث: <%= group.lastDate ? group.lastDate.split('-').reverse().join('/') : 'غير متوفر' %>)</span>
                     </div>
                     <div class="expense-total <%= group.total >= 0 ? 'amount-in' : 'amount-out' %>">
                         الإجمالي: <%= group.total.toLocaleString('en-US') %> ر.ع
@@ -534,7 +857,7 @@
                                 <% group.transactions.forEach(t => { %>
                                 <tr>
                                     <td data-label="#"><span style="font-weight: bold; color: var(--text-muted);"><%= t.id %></span></td>
-                                    <td data-label="التاريخ"><%= t.date || '-' %></td>
+                                    <td data-label="التاريخ"><%= t.date ? t.date.split('-').reverse().join('/') : '-' %></td>
                                     <td data-label="البند"><%= t.item %></td>
                                     <td data-label="التفاصيل"><%= t.details || '-' %></td>
                                     <td data-label="المبلغ" class="<%= t.amount >= 0 ? 'amount-in' : 'amount-out' %>"><%= t.amount %></td>
@@ -551,9 +874,38 @@
                 </div>
             <% } %>
         </div>
+        </div> <!-- End accordion-container -->
         
         <div style="margin-top: 30px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
             تم تحديث البيانات تلقائياً من النظام
+        <br><br><br>
+        </div>
+        <div id="chat-widget">
+          <div id="chat-header">
+          <div class="header-left">
+            الجمعية GPT
+            <img id="headerIco"
+                 src="images/processing-header.gif"
+                 width="16"
+                 style="visibility: hidden; vertical-align: middle;">
+          </div>
+        
+          <i class="fa-solid fa-chevron-up accordion-icon" id="headerInd"></i>
+        </div>
+          <div id="chat-messages">
+          </div>
+          <div id="typing">
+            <img src="images/processing-typing.gif" style="vertical-align: middle;" width="10%">
+            <span style="vertical-align: middle;" id="timer">00:00</span>&nbsp;&nbsp;&nbsp;<span><font color="green"><b>جاري المعالجة إنتظر قليلا</b></font></span>
+          </div>
+          <div id="chat-export" style="text-align: center; background-color: azure;">
+            <button id="imgSave" onclick="saveImage();"><i class="fa-solid fa-image"> صورة</i></button>&nbsp;حفظ المحادثة
+            <button id="pdfSave" onclick="savePDF();"><i class="fa-solid fa-file-pdf"> PDF</i></button>
+          </div>
+          <div id="chat-input">
+            <input type="text" id="input" placeholder="اكتب استفسارك...">
+            <button id="send">ارسال</button>
+          </div>
         </div>
     </div>
 
@@ -634,23 +986,21 @@
             }
         }
 
-        function openTab(evt, tabName) {
-            // Hide all tab content
-            var i, tabcontent, tablinks;
-            tabcontent = document.getElementsByClassName("tab-content");
-            for (i = 0; i < tabcontent.length; i++) {
-                tabcontent[i].classList.remove("active");
+        function toggleAccordion(id) {
+            const content = document.getElementById(id);
+            const btn = content.previousElementSibling;
+            
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                if(btn) btn.classList.remove('active');
+            } else {
+                // Close others
+                document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.accordion-btn').forEach(b => b.classList.remove('active'));
+                
+                content.classList.add('active');
+                if(btn) btn.classList.add('active');
             }
-
-            // Remove active class from all tab links
-            tablinks = document.getElementsByClassName("tab-btn");
-            for (i = 0; i < tablinks.length; i++) {
-                tablinks[i].classList.remove("active");
-            }
-
-            // Show the specific tab content and add active class to the button
-            document.getElementById(tabName).classList.add("active");
-            evt.currentTarget.classList.add("active");
         }
 
         function toggleDetails(id) {
@@ -740,5 +1090,415 @@
             });
         }
     </script>
+    
+    <script>
+    const chatHeader = document.getElementById('chat-header');
+    const chatMessages = document.getElementById('chat-messages');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const typing = document.getElementById('typing');
+    const chatExport = document.getElementById('chat-export');
+    const pdfSave = document.getElementById('pdfSave');
+    const imgSave = document.getElementById('imgSave');
+    const headerIco = document.getElementById('headerIco');
+    const icon = document.getElementById("headerInd");
+    
+    let conversation_id= '';
+    let instructions = true;
+    let getAnswer = false;
+    
+    chatHeader.addEventListener('click', () => {
+      const display = window.getComputedStyle(chatMessages).display;
+      chatMessages.style.display = display === 'none' ? 'block' : 'none';
+      document.getElementById('chat-input').style.display = display === 'none' ? 'flex' : 'none';
+    
+      if(chatMessages.style.display==='none') {
+        icon.classList.remove("fa-chevron-down");
+        icon.classList.add("fa-chevron-up");
+        if (getAnswer == false && chatMessages.children.length > 0)  {
+          headerIco.style.visibility = "visible";
+        }
+        typing.style.display = 'none';
+        showExport = false;
+        showChatExport();
+      } else {
+        icon.classList.remove("fa-chevron-up");
+        icon.classList.add("fa-chevron-down");
+        headerIco.style.visibility = "hidden";
+        if (getAnswer == false && chatMessages.children.length > 0)  {
+          typing.style.display = 'block';
+        }
+      }
+      scrollToBottom();
+    });
+    
+    function scrollToBottom() {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    let totalSeconds = 0;
+    let interval = null;
+    const timerDiv = document.getElementById("timer");
+    
+    async function sendMessage() {
+    
+      sendBtn.disabled = true;
+      
+      if (interval !== null) {
+        clearInterval(interval);
+        totalSeconds=0;
+        timerDiv.textContent= "00:00"
+      }
+    
+      interval = setInterval(() => {
+        totalSeconds++;
+    
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+    
+        timerDiv.textContent = String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+      }, 1000);
+    
+      const msg = input.value.trim();
+      if (!msg) return;
+    
+      if(instructions) {
+        const instr = document.createElement('div');
+        instr.innerHTML = "<sup>- إضغط مرتين على سؤالك لنسخه وتعديله</sup>";
+        instr.innerHTML = instr.innerHTML + "<br>" + "<sup>- إضغط مرتين على الرد لحفظ المحادثة</sup>";
+        instr.innerHTML = instr.innerHTML + "<br>" + "<sup>- إضغط على السؤال المقترح وبعدها ارسال</sup>";
+        instr.style.textAlign = "right";
+        instr.style.background = 'azure';
+        chatMessages.appendChild(instr);
+        instructions= false;
+      }
+    
+      if(showExport==false) {
+        showChatExport();
+      }
+      
+      const userBubble = document.createElement('div');
+      userBubble.classList.add('message', 'user');
+      userBubble.textContent = msg;
+      chatMessages.appendChild(userBubble);
+    
+      userBubble.addEventListener('dblclick', () => {
+          if(getAnswer)
+            input.value= userBubble.textContent;
+      });
+      
+      input.value = '';
+      const intervalId = setInterval(() => {
+        scrollToBottom();
+        clearInterval(intervalId);
+      }, 10);
+    
+      typing.style.display = 'block';
+      input.disabled = true;
+      pdfSave.disabled = true;
+      imgSave.disabled = true;
+    
+      try {
+        getAnswer = false;
+        const response = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, conversationId: conversation_id})
+        });
+    
+        const data = await response.json();
+        typing.style.display = 'none';
+    
+        conversation_id= data.reply.conversation_id;
+    
+        const botBubble = document.createElement('div');
+        botBubble.style= "overflow: visible;"
+        botBubble.classList.add('message', 'bot');
+        botBubble.addEventListener('dblclick', showChatExport);
+        if(data.reply.content !== undefined)
+          if(data.reply.content.length > 0)
+            botBubble.innerHTML = data.reply.content[0].replaceAll('\n', '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') + '<br>';
+        if(data.reply.table !== undefined) {
+          const accArea = document.createElement('div'); 
+          accArea.innerHTML = `
+            <div class="accordion-gpt">
+              <div class="accordion-item-gpt">
+                <div class="accordion-header-gpt">عرض البيانات كجدول</div>
+                <div class="accordion-content-gpt">
+                  <div class="accordion-inner-gpt">
+                    ${renderTable(data.reply.table)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          botBubble.appendChild(accArea);
+          const headers = accArea.querySelectorAll(".accordion-header-gpt");
+    
+          headers.forEach(header => {
+          header.addEventListener("click", () => {
+            const content = header.nextElementSibling;
+            const isOpen = header.classList.contains("active");
+    
+            headers.forEach(h => {
+              h.classList.remove("active");
+              h.nextElementSibling.style.maxHeight = null;
+            });
+    
+            if (!isOpen) {
+              header.classList.add("active");
+              content.style.maxHeight = "none";
+              const height = content.scrollHeight;
+              content.style.maxHeight = height + "px";
+            }
+            });
+          });
+        }
+        if (data.reply.contentQues !== undefined) {
+          const quesDiv = document.createElement("div");
+          quesDiv.innerHTML = data.reply.contentQues;
+          botBubble.appendChild(quesDiv);
+        }
+        chatMessages.appendChild(botBubble);
+        
+        if(data.reply.suggestedQuestions !== undefined) {
+          const questionsArea = document.createElement('questionsArea');
+          questionsArea.innerHTML = "<b>" + "أسئلة مقترحة" + "</b>"
+          const questions = data.reply.suggestedQuestions;
+          questions.forEach(q => {
+            const btn = document.createElement("button");
+            btn.textContent = '- ' + q;
+            btn.onclick = () => {
+            if (!input.disabled) {
+              input.value = btn.textContent.replace("- ", "");
+              }
+            };
+            btn.style= "font-size: 16px;"
+            btn.style.color = '#FF4500';
+            btn.style.background = 'none';
+            btn.style.border = 'none';
+            btn.style.padding = '0';
+            btn.style.cursor = 'pointer';
+            btn.style.display = "flex";
+            btn.style.flexDirection = "column";
+            btn.style.gap = "10px";
+            btn.style.textAlign = "right",
+            btn.style.width="100%",
+            questionsArea.appendChild(btn);
+          });
+          chatMessages.appendChild(questionsArea)
+        }
+    
+        if(data.reply.created_timestamp !== undefined) {
+          const time = document.createElement('div');
+          time.style.direction = 'ltr';
+          time.innerHTML = '<sub>' + data.reply.created_timestamp.replace('AM','ص').replace('PM','م'); + '</sub>';
+          chatMessages.appendChild(time);
+        }
+    
+        const spacesArea = document.createElement('spacesArea');
+        spacesArea.innerHTML="<br>"
+        chatMessages.appendChild(spacesArea)
+    
+        scrollToBottom();
+        headerIco.style.visibility = "hidden";
+        chatHeader.style.backgroundColor="green";
+    
+        setTimeout(() => {
+          chatHeader.style.backgroundColor="#4A90E2";
+        }, 3000);
+    
+      } catch (error) {
+        typing.style.display = 'none';
+        const errorBubble = document.createElement('div');
+        errorBubble.classList.add('message', 'bot');
+        errorBubble.textContent = "نرجو التأكد من إتصالك بالإنترنت عدا ذلك قم بإبلاغ القائمين على الموقع بحدوث مشكله";
+        errorBubble.style.color = 'red';
+        errorBubble.style.textAlign = "center";
+        chatMessages.appendChild(errorBubble);
+        const spacesArea = document.createElement('spacesArea');
+        spacesArea.innerHTML="<br>"
+        chatMessages.appendChild(spacesArea)
+        scrollToBottom();
+      }
+      input.disabled = false;
+      pdfSave.disabled = false;
+      imgSave.disabled = false;
+      sendBtn.disabled = false;
+      getAnswer = true;
+    }
+    
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+    
+    showExport = true;
+    function showChatExport() {
+      if(chatMessages.children.length > 0 && typing.style.display === 'none') {
+        if(showExport) 
+          chatExport.style.display = 'block';
+        else
+          chatExport.style.display = 'none';
+        showExport= !showExport;
+      }
+      //scrollToBottom();
+    }
+    
+    function renderTable(table) {
+      
+      const columns = table.manifest.schema.columns;
+    
+      let html = '';
+    
+      if(table?.result?.data_array) {
+    
+        table.result.data_array.forEach(row => {
+          html += `
+            <table border='0'style='width: 100%;table-layout: fixed; border-collapse: separate;
+      border-spacing: 0;
+      border-radius: 8px;
+      overflow: hidden;'>`;
+    
+          columns.forEach((col, index) => {
+            if (row[index] !== null) {
+              html += `
+                <tr style='text-align:right;'>
+                  <td style='background:#d8d6d6;'>
+                    ${col.name.replace('_', ' ').toUpperCase()}
+                  </td>
+                  <td td style='background:#e3e2e2;'>
+                    ${row[index]}
+                  </td>
+                </tr>
+              `;
+            }
+          });
+    
+        html += `
+          </table><br>
+        `;});
+      } else {
+        html += `
+            <table border='0'style='width: 100%;table-layout: fixed;'>
+              <tr><td style="background:#e5e3e3">لا توجد بيانات</td></tr></table>
+          `;
+      }
+      return html;
+    }
+    
+    function saveImage() {
+    
+      const widget = document.getElementById("chat-widget");
+      const messages = document.getElementById("chat-messages");
+    
+      // Save original styles
+      const original = {
+        widgetMaxHeight: widget.style.maxHeight,
+        widgetOverflow: widget.style.overflow,
+        messagesHeight: messages.style.height,
+        messagesOverflow: messages.style.overflow
+      };
+    
+      // Remove parent constraints
+      widget.style.maxHeight = "none";
+      widget.style.overflow = "visible";
+    
+      // Expand messages
+      messages.style.height = messages.scrollHeight + "px";
+      messages.style.overflow = "visible";
+    
+      html2canvas(widget, {
+        scale: 2,
+        useCORS: true
+      }).then(canvas => {
+    
+        // Restore original styles
+        widget.style.maxHeight = original.widgetMaxHeight;
+        widget.style.overflow = original.widgetOverflow;
+        messages.style.height = original.messagesHeight;
+        messages.style.overflow = original.messagesOverflow;
+    
+        // Download image
+        const link = document.createElement("a");
+        link.download = "jam3ya-gpt-img.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    
+      }).catch(err => {
+        //console.error("Capture failed:", err);
+    
+        // Restore styles on error
+        widget.style.maxHeight = original.widgetMaxHeight;
+        widget.style.overflow = original.widgetOverflow;
+        messages.style.height = original.messagesHeight;
+        messages.style.overflow = original.messagesOverflow;
+      });
+      const intervalId = setInterval(() => {
+        scrollToBottom();
+        clearInterval(intervalId);
+      }, 100);
+    }
+    
+    function savePDF() {
+    
+      const widget = document.getElementById("chat-widget");
+      const messages = document.getElementById("chat-messages");
+    
+      const original = {
+        widgetMaxHeight: widget.style.maxHeight,
+        widgetOverflow: widget.style.overflow,
+        messagesHeight: messages.style.height,
+        messagesOverflow: messages.style.overflow
+      };
+    
+      widget.style.maxHeight = "none";
+      widget.style.overflow = "visible";
+      messages.style.height = messages.scrollHeight + "px";
+      messages.style.overflow = "visible";
+    
+      html2canvas(widget, {
+        scale: 2,
+        useCORS: true
+      }).then(canvas => {
+    
+        // Restore styles
+        widget.style.maxHeight = original.widgetMaxHeight;
+        widget.style.overflow = original.widgetOverflow;
+        messages.style.height = original.messagesHeight;
+        messages.style.overflow = original.messagesOverflow;
+    
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF("p", "mm", "a4");
+    
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+    
+        const imgWidth = pageWidth * 0.25;     // 🔹 smaller
+        const xOffset = (pageWidth - imgWidth) / 2; // center
+    
+        const imgHeight = canvas.height * imgWidth / canvas.width;
+    
+        let heightLeft = imgHeight;
+        let position = 0;
+    
+        const imgData = canvas.toDataURL("image/png");
+    
+        pdf.addImage(imgData, "PNG", xOffset, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+    
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, "PNG", xOffset, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+    
+        pdf.save("jam3ya-gpt-pdf.pdf");
+      });
+      const intervalId = setInterval(() => {
+        scrollToBottom();
+        clearInterval(intervalId);
+      }, 100);
+    }
+</script>
 </body>
 </html>

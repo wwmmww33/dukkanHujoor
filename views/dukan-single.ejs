@@ -55,12 +55,14 @@
                         <!-- زر التواصل عبر واتساب -->
                      <!-- استبدل قسم product-actions القديم بهذا -->
 <div class="product-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-    <!-- زر البحث في الإنترنت الجدي
+    <!-- زر شاهد الفيديو -->
     <% if (product.youtube_link) { %>
-    <button onclick="openVideoModal('<%= product.youtube_link %>')" class="btn btn-secondary" style="flex: 1; background-color: #FF0000; border-color: #FF0000; color: white;" title="شاهد فيديو للمنتج">
+    <a href="<%= product.youtube_link %>" target="_blank" class="btn btn-secondary" style="flex: 1; background-color: #FF0000; border-color: #FF0000; color: white; display: flex; align-items: center; justify-content: center; text-decoration: none;" title="شاهد فيديو للمنتج في يوتيوب">
         ▶️ شاهد الفيديو
-    </button>
-<% } %>د -->
+    </a>
+    <% } %>
+    
+    <!-- زر البحث في الإنترنت -->
     <a href="https://lens.google.com/uploadbyurl?url=<%= req.protocol %>://<%= req.get('host') %>/uploads/<%= product.image_path %>&st=16&ep=cnts" 
        target="_blank" class="btn btn-secondary" style="flex: 1;" title="ابحث عن هذا المنتج في الإنترنت باستخدام صورته">
        🌐 ابحث

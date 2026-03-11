@@ -1,0 +1,13 @@
+{
+    "public_html/dukkanHujoor": {
+        "app_mode": "production",
+        "app_status": "started",
+        "app_uri": "",
+        "config_files": [],
+        "domain": "dukan-alhujoor.com",
+        "env_vars": {},
+        "nodejs_version": "18",
+        "passenger_log_file": null,
+        "startup_file": "server.js"
+    }
+}

@@ -1,0 +1,52 @@
+<main class="main-content">
+    <div class="profile-container fade-in" style="max-width: 800px; margin: 2rem auto;">
+        
+        <!-- ======================= 1. Profile Header ======================= -->
+       <!-- ======================= 1. Profile Header (Responsive) ======================= -->
+<div class="profile-header">
+    <!-- Avatar Section -->
+    <div class="profile-header-avatar">
+        <% if (user.avatar) { %>
+            <img src="/uploads/<%= user.avatar %>" alt="صورة شخصية" class="profile-avatar-img">
+        <% } else { %>
+            <div class="profile-avatar-placeholder">
+                <%= user.name.charAt(0).toUpperCase() %>
+            </div>
+        <% } %>
+    </div>
+    
+    <!-- Info & Actions Section -->
+    <div class="profile-header-content">
+        <div class="profile-header-info">
+            <h1><%= user.name %></h1>
+            <% if (user.email) { %>
+                <p>📧 <%= user.email %></p>
+            <% } %>
+            <p>📱 +968 <%= user.phone %></p>
+<p class="join-date">📅 عضو منذ: <%= new Date(user.created_at).toLocaleDateString('en-GB') %></p>
+        </div>
+        <div class="profile-header-actions">
+            <a href="/edit-profile" class="btn btn-primary">
+                ✏️ تعديل الملف الشخصي
+            </a>
+        </div>
+    </div>
+</div>
+        
+        <!-- ======================= 2. Bio Section ======================= -->
+        <div class="profile-section" style="background-color: var(--bg-surface); padding: 2rem; border-radius: var(--border-radius); box-shadow: var(--shadow);">
+            <h3 style="margin-bottom: 1rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; display: inline-block;">📝 نبذة شخصية</h3>
+            <div class="section-content">
+                <% if (user.bio) { %>
+                    <p style="line-height: 1.8; color: var(--text-secondary);"><%= user.bio %></p>
+                <% } else { %>
+                    <div style="text-align: center; padding: 1.5rem;">
+                        <p style="color: var(--text-secondary);">لم تقم بإضافة نبذة شخصية بعد.</p>
+                        <a href="/edit-profile" class="btn btn-secondary" style="margin-top: 1rem;">أضف نبذة الآن</a>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+    </div>
+</main>

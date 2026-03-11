@@ -156,7 +156,10 @@ function openVideoModal(youtubeLink) {
         return;
     }
 
-    const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    const origin = window.location.origin;
+    // استخدام youtube-nocookie.com قد يساعد في تجاوز بعض القيود
+    // إضافة enablejsapi=1 مع origin ضروري للأمان
+    const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&origin=${encodeURIComponent(origin)}&enablejsapi=1&rel=0&playsinline=1`;
 
     // ... باقي كود إنشاء النافذة المنبثقة يبقى كما هو ...
     const modalOverlay = document.createElement('div');
@@ -165,7 +168,7 @@ function openVideoModal(youtubeLink) {
         <div class="video-modal-content">
             <button class="video-modal-close-btn" onclick="closeVideoModal()">×</button>
             <div class="video-wrapper">
-                <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
             </div>
         </div>
     `;

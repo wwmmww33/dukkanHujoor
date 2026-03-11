@@ -1,0 +1,114 @@
+<main class="main-content">
+        <div class="auth-container fade-in">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">🚀 إنشاء حساب جديد</h1>
+            <p class="auth-subtitle">انضم إلى مجتمع دكان الحجور</p>
+        </div>
+        
+        <% if (error) { %>
+            <div class="alert alert-error">
+                <i class="error-icon">⚠️</i>
+                <%= error %>
+            </div>
+        <% } %>
+        
+        <form method="POST" action="/register" class="auth-form">
+            <div class="form-group">
+                <label for="name" class="form-label">👤 الاسم الكامل</label>
+                <input type="text" id="name" name="name" required 
+                       class="form-input"
+                       placeholder="أدخل اسمك الكامل"
+                       minlength="2" maxlength="50">
+            </div>
+            <div class="form-group">
+    <label for="email" class="form-label">📧 البريد الإلكتروني</label>
+    <input type="email" id="email" name="email" required class="form-input" placeholder="example@email.com">
+</div>
+            <div class="form-group">
+                <label for="phone" class="form-label">📱 رقم الهاتف</label>
+                <div style="position: relative;">
+                    <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #666; font-size: 14px; z-index: 1;">+968</span>
+                    <input type="tel" id="phone" name="phone" required 
+                           class="form-input"
+                           placeholder="99123456" 
+                           pattern="[0-9]{8}"
+                           maxlength="8"
+                           minlength="8"
+                           style="padding-left: 60px;"
+                           title="يرجى إدخال 8 أرقام فقط">
+                </div>
+                <small style="color: #666; font-size: 12px;">أدخل 8 أرقام فقط (سيتم إضافة رمز الدولة +968 تلقائياً)</small>
+                <div style="display: flex; align-items: center; margin-top: 8px; padding: 8px; background-color: #f0f9ff; border: 1px solid #e0f2fe; border-radius: 6px;">
+                    <span style="font-size: 16px; margin-right: 8px;">📱</span>
+                    <small style="color: #0369a1; font-size: 12px; font-weight: 500;">تأكد من أن رقم الهاتف يحتوي على خدمة الواتساب للتواصل المباشر</small>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password" class="form-label">🔒 كلمة المرور</label>
+                <input type="password" id="password" name="password" required 
+                       class="form-input"
+                       placeholder="أدخل كلمة مرور قوية"
+                       minlength="6">
+                <small style="color: #666; font-size: 12px;">يجب أن تكون كلمة المرور 6 أحرف على الأقل</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmPassword" class="form-label">🔒 تأكيد كلمة المرور</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required 
+                       class="form-input"
+                       placeholder="أعد إدخال كلمة المرور">
+            </div>
+            
+            <button type="submit" class="submit-btn">إنشاء حساب</button>
+
+        </form>
+        
+        <div class="auth-footer">
+            <p>لديك حساب بالفعل؟ <a href="/login" class="auth-link">تسجيل الدخول</a></p>
+        </div>
+        
+
+    </div>
+</div>
+
+<script>
+    // تنسيق رقم الهاتف العماني أثناء الكتابة (8 أرقام فقط)
+    document.getElementById('phone').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, ''); // إزالة كل شيء عدا الأرقام
+        if (value.length > 8) {
+            value = value.substring(0, 8);
+        }
+        e.target.value = value;
+        
+        // التحقق من صحة الرقم العماني
+        if (value.length === 8) {
+            e.target.setCustomValidity('');
+        } else if (value.length > 0) {
+            e.target.setCustomValidity('يجب أن يكون رقم الهاتف 8 أرقام بالضبط');
+        }
+    });
+    
+    // التحقق من تطابق كلمات المرور
+    document.getElementById('confirmPassword').addEventListener('input', function(e) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = e.target.value;
+        
+        if (password !== confirmPassword) {
+            e.target.setCustomValidity('كلمات المرور غير متطابقة');
+        } else {
+            e.target.setCustomValidity('');
+        }
+    });
+    
+    // التحقق عند تغيير كلمة المرور الأصلية
+    document.getElementById('password').addEventListener('input', function(e) {
+        const confirmPassword = document.getElementById('confirmPassword');
+        if (confirmPassword.value) {
+            confirmPassword.dispatchEvent(new Event('input'));
+        }
+    });
+</script>
+        </div>
+    </main>

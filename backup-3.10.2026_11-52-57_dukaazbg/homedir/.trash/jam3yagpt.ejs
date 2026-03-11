@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #27ae60;
+            --danger: #c0392b;
+            --light: #f8f9fa;
+            --border: #dee2e6;
+            --text: #333;
+            --text-muted: #666666;
+            --bg: #f8f9fa;
+            --surface: #ffffff;
+            --table-header: #f8f9fa;
+            --table-stripe: #f9fafb;
+            --table-hover: #e9ecef;
+            --input-bg: #ffffff;
+            --input-text: #333333;
+            --bg-soft-primary: #eaf2f8;
+            --bg-soft-success: #e8f5e9;
+            --bg-soft-danger: #fdeaea;
+            --bg-soft-warning: #fff3cd;
+            --text-warning: #856404;
+        }
+        [data-theme="dark"] {
+            --primary: #3f9eff;
+            --secondary: #34c759;
+            --danger: #ff453a;
+            --light: #121212;
+            --border: #3a3a3c;
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --text: #e5e5e5;
+            --text-muted: #a0a0a0;
+            --table-header: #2c2c2e;
+            --table-stripe: #252527;
+            --table-hover: #3a3a3c;
+            --input-bg: #2c2c2e;
+            --input-text: #e5e5e5;
+            --bg-soft-primary: rgba(63, 158, 255, 0.15);
+            --bg-soft-success: rgba(52, 199, 89, 0.15);
+            --bg-soft-danger: rgba(255, 69, 58, 0.15);
+            --bg-soft-warning: rgba(255, 214, 10, 0.15);
+            --text-warning: #ffd60a;
+        }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: var(--bg);
+            color: var(--text);
+            margin: 0; 
+            padding: 20px; 
+            line-height: 1.6;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: var(--surface);
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 20px;
+        }
+        h1 { 
+            color: var(--primary); 
+            margin: 0;
+            font-size: 2rem;
+        }
+        .subtitle {
+            color: var(--text-muted);
+            margin-top: 10px;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            max-width: 100%;
+            -webkit-overflow-scrolling: touch;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid var(--border); }
+        th { 
+            background: var(--table-header);
+            font-weight: 600; 
+            color: var(--primary); 
+            white-space: nowrap;
+        }
+
+        /* Fix for mobile scrolling: ensure table doesn't shrink too much */
+        .table-container table {
+            min-width: 100%;
+        }
+        
+        /* Ensure Details column has enough width */
+        /* Redundant block removed as width is now set directly in table definitions */
+        
+        .table-container th, .table-container td {
+            white-space: nowrap;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: var(--table-hover); }
+        
+        .amount-in { color: var(--secondary); font-weight: bold; direction: ltr; text-align: right; }
+        .amount-out { color: var(--danger); font-weight: bold; direction: ltr; text-align: right; }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            background: var(--table-hover);
+            color: var(--text);
+        }
+
+        /* Info Banner */
+        .info-banner {
+            background: var(--bg-soft-primary);
+            border: 1px solid var(--primary);
+            border-right: 5px solid var(--primary);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            animation: slideDown 0.3s ease-out;
+        }
+        .info-banner-title {
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+        }
+        .info-banner-content {
+            font-size: 1.05rem;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre-wrap;
+        }
+
+        /* Accordion Layout */
+        .accordion-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .accordion-btn {
+            width: 100%;
+            padding: 15px 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: right;
+            font-size: 1.1rem;
+            font-family: inherit;
+            color: var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            position: relative;
+            z-index: 2;
+        }
+        .accordion-btn:hover {
+            background: var(--bg-soft-primary);
+        }
+        .accordion-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        .accordion-content {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            padding: 20px;
+            margin-top: -10px; /* Connect with button */
+            margin-bottom: 10px;
+            animation: slideDown 0.3s ease-out;
+            position: relative;
+            z-index: 1;
+        }
+        .accordion-content.active {
+            display: block;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .accordion-btn .accordion-icon {
+            transition: transform 0.3s;
+        }
+        .accordion-btn.active .accordion-icon {
+            transform: rotate(180deg);
+        }
+        
+        .accordion-btn.member-tab {
+            border-right: 5px solid var(--secondary);
+        }
+        .accordion-btn.member-tab.active {
+            background: var(--secondary);
+            border-color: var(--secondary);
+        }
+
+        /* Alternating row colors */
+        .transactions-table tbody tr:nth-child(even),
+        .payments-table tbody tr:nth-child(even),
+        .subject-table tbody tr:nth-child(even) {
+            background-color: var(--table-stripe);
+        }
+        /* Hover effect */
+        .transactions-table tbody tr:hover,
+        .payments-table tbody tr:hover,
+        .subject-table tbody tr:hover {
+            background-color: var(--table-hover) !important;
+        }
+
+        @media (max-width: 600px) {
+            th, td { padding: 10px; }
+        }
+
+        /* Expense Card Styles */
+        .expense-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .expense-header {
+            background: var(--table-header);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .expense-title {
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+        .expense-total {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .table-fit { table-layout: fixed; width: 100%; }
+        .table-fit th, .table-fit td { white-space: normal; vertical-align: middle; }
+        
+        .transactions-table { min-width: 1000px; }
+        .transactions-table th:nth-child(1), .transactions-table td:nth-child(1) { width: 60px; text-align: center; padding: 5px; }
+        .transactions-table th:nth-child(2), .transactions-table td:nth-child(2) { width: 120px; white-space: nowrap; }
+        .transactions-table th:nth-child(3), .transactions-table td:nth-child(3) { width: 160px; overflow-wrap: break-word; }
+        .transactions-table th:nth-child(4), .transactions-table td:nth-child(4) { width: 160px; overflow-wrap: break-word; }
+        .transactions-table th:nth-child(5), .transactions-table td:nth-child(5) { width: 200px; overflow-wrap: break-word; white-space: normal !important; line-height: 1.6; }
+        .transactions-table th:nth-child(6), .transactions-table td:nth-child(6) { width: 100px; white-space: nowrap; }
+        .transactions-table th:nth-child(7), .transactions-table td:nth-child(7) { width: 140px; white-space: nowrap; }
+
+        .payments-table { min-width: 600px; }
+        .payments-table th:nth-child(1), .payments-table td:nth-child(1) { width: 50px; text-align: center; padding: 5px; }
+        .payments-table th:nth-child(2), .payments-table td:nth-child(2) { width: 110px; white-space: nowrap; }
+        .payments-table th:nth-child(3), .payments-table td:nth-child(3) { width: 110px; white-space: nowrap; overflow-wrap: break-word; }
+        .payments-table th:nth-child(4), .payments-table td:nth-child(4) { width: 50px; white-space: nowrap; }
+
+        .subject-table { min-width: 600px; }
+        .subject-table th:nth-child(1), .subject-table td:nth-child(1) { width: 50px; text-align: center; padding: 5px; }
+        .subject-table th:nth-child(2), .subject-table td:nth-child(2) { width: 110px; white-space: nowrap; }
+        .subject-table th:nth-child(3), .subject-table td:nth-child(3) { width: 200px; overflow-wrap: break-word; }
+        .subject-table th:nth-child(4), .subject-table td:nth-child(4) { width: 100px; overflow-wrap: break-word; }
+        .subject-table th:nth-child(5), .subject-table td:nth-child(5) { width: 50px; white-space: nowrap; }
+
+        @media (max-width: 600px) {
+            th, td { padding: 10px; }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .table-container { overflow-x: auto; }
+        }
+
+        /* Custom Dropdown Styles */
+        .custom-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 250px;
+            overflow-y: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0 0 8px 8px;
+            z-index: 10000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .custom-dropdown-item {
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+        .custom-dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .custom-dropdown-item:hover {
+            background: var(--table-hover);
+        }
+        .transactions-table th.sortable { cursor: pointer; user-select: none; }
+        .transactions-table th .sort-icon { margin-left: 6px; color: var(--text-muted); }
+        .transactions-table th.active .sort-icon { color: var(--secondary); }
+
+        /* Summary Grid Layout */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .summary-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .summary-label {
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+        .summary-value {
+            padding: 15px;
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface);
+        }
+        .summary-value small {
+            font-size: 0.8rem;
+            margin-right: 5px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 600px) {
+            .summary-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .summary-item.current-balance { order: 1; }
+            .summary-item.total-deposits { order: 2; }
+            .summary-item.total-expenses { order: 3; }
+            
+            .summary-label { padding: 10px 5px; font-size: 0.85rem; }
+            .summary-value { padding: 12px; font-size: 1.1rem; }
+        }
+        
+        #chat-widget { z-index: 999; position: fixed; bottom: 20px; right: 20px; width: 320px; max-height: 85vh; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; background: #fff; font-family: Arial, sans-serif; overflow: hidden; }
+        #chat-header {
+          background: #4A90E2;
+          color: white;
+          padding: 10px;
+          cursor: pointer;
+          font-weight: bold;
+        
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 6px; /* space between GPT and gif */
+        }
+        #chat-messages { flex: 1; padding: 10px; overflow-y: auto; display: none;}
+        #chat-input { display: none; border-top: 1px solid #ccc; }
+        #chat-input input { flex: 1; border: none; padding: 10px; outline: none; }
+        #chat-input button { border: none; padding: 10px; background: #4A90E2; color: white; cursor: pointer; }
+        .message { margin: 5px 0; padding: 8px 12px; border-radius: 15px; max-width: 100%; word-wrap: break-word; }
+        .message.user { background: #DCF8C6; align-self: flex-end; }
+        .message.bot { background: #F1F0F0; align-self: flex-start; }
+        #typing { font-style: italic; color: gray; margin: 5px; display: none; }
+        
+        #chat-export { display: none; border-top: 0px solid #ccc; justify-content: center;}
+        #chat-export button { border: none; padding: 10px; background: #f0b07a; color: rgb(13, 12, 12); cursor: pointer;}
+        
+        .accordion-gpt {
+          width: 100%;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+        }
+        .accordion-item-gpt {
+          border-bottom: 1px solid #ccc;
+        }
+        .accordion-header-gpt {
+          background-color: #f1f1f1;
+          cursor: pointer;
+          padding: 15px;
+          font-weight: bold;
+        }
+        .accordion-content-gpt {
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease;
+          padding: 0; /* ✅ */
+        }
+        .accordion-inner-gpt {
+          padding: 15px;
+        }
+        .accordion-content-gpt p {
+          margin: 15px 0;
+        }
+        .accordion-header-gpt.active {
+          background-color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><font color="red">FOR TESTING ONLY</font></h1>
+            <h1>جمعية الخطوة الأهلية</h1>
+            <div class="subtitle">نظام تتبع المدخلات والمخرجات المالية</div>
+            <div style="margin-top: 12px;">
+                <button id="themeToggle" onclick="toggleTheme()" style="padding:8px 12px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;cursor:pointer;">🌓 الوضع</button>
+            </div>
+            <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
+                <div style="margin-top: 10px; color: var(--secondary); font-weight: bold;">
+                    مرحباً، <%= typeof adminName !== 'undefined' ? adminName : 'مدير النظام' %>
+                    <a href="/jam3ya/dashboard" style="font-size: 0.9rem; color: var(--primary); margin-right: 10px; text-decoration: none;">(لوحة التحكم)</a>
+                </div>
+                <% if (typeof memberId !== 'undefined' && memberId) { %>
+                    <div style="margin-top: 5px; color: var(--text-muted); font-size: 0.95rem;">
+                        عرض سجل العضو: <%= memberName %> (رقم: <%= memberId %>)
+                    </div>
+                <% } %>
+            <% } else if (typeof isLoggedIn !== 'undefined' && isLoggedIn && typeof memberId !== 'undefined') { %>
+                <div style="margin-top: 10px; color: var(--secondary); font-weight: bold;">
+                    مرحباً، <%= memberName %> (رقم العضو: <%= memberId %>)
+                    <a href="/jam3ya/logout" style="font-size: 0.9rem; color: var(--danger); margin-right: 10px; text-decoration: none;">(تسجيل خروج)</a>
+                </div>
+            <% } %>
+        </header>
+
+        <!-- Search Form (Only for Admins) -->
+        <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
+        <div style="margin-bottom: 30px; text-align: center;">
+            <form action="/jam3ya" method="GET" style="display: inline-flex; gap: 10px; max-width: 100%;">
+                <input type="text" name="view_member_code" placeholder="أدخل رقم العضو للبحث..." value="<%= typeof memberId !== 'undefined' ? memberId : '' %>" 
+                    style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; width: 200px; font-family: inherit;">
+                <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer;">بحث</button>
+                <% if (typeof memberId !== 'undefined' && memberId) { %>
+                    <a href="/jam3ya" style="padding: 10px 20px; background: var(--danger); color: white; border: none; border-radius: 6px; text-decoration: none; display: inline-block;">إلغاء</a>
+                <% } %>
+            </form>
+        </div>
+        <% } %>
+
+        <!-- Login Button for Guests -->
+        <% if ((typeof isLoggedIn === 'undefined' || !isLoggedIn) && (typeof isAdmin === 'undefined' || !isAdmin)) { %>
+            <div style="margin-bottom: 30px; text-align: center;">
+                <a href="/jam3ya/login" style="padding: 10px 25px; background: var(--secondary); color: white; border: none; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 1.1rem; display: inline-block;">تسجيل دخول الأعضاء</a>
+            </div>
+        <% } %>
+        
+        <% 
+        // Filter messages
+        let activeMsgs = [];
+        let archivedMsgs = [];
+        if (typeof infoMessages !== 'undefined' && infoMessages) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            infoMessages.forEach(msg => {
+                const displayUntil = msg.display_until ? new Date(msg.display_until) : null;
+                if (displayUntil) {
+                    displayUntil.setHours(0, 0, 0, 0);
+                    if (displayUntil >= today) {
+                        activeMsgs.push(msg);
+                    } else {
+                        archivedMsgs.push(msg);
+                    }
+                } else {
+                    // No date means always active? Or always archive? Assuming always active for now if no date, or handle as active.
+                    activeMsgs.push(msg);
+                }
+            });
+        }
+        %>
+
+        <!-- Active Messages Banner -->
+        <% if (activeMsgs.length > 0) { %>
+            <div class="info-banner">
+                <div class="info-banner-title">
+                    <i class="fa-solid fa-bullhorn" style="margin-left: 8px;"></i>
+                    تنويه هام
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <% activeMsgs.forEach(function(msg) { %>
+                        <div class="info-banner-content"><%= msg.message %></div>
+                    <% }); %>
+                </div>
+            </div>
+        <% } %>
+
+        <div class="accordion-container">
+            <!-- Information Tab (Archives) -->
+            <% if (typeof infoMessages !== 'undefined' && infoMessages && infoMessages.length > 0) { %>
+            <button class="accordion-btn" onclick="toggleAccordion('info')">
+                <span><i class="fa-solid fa-circle-info" style="margin-left:8px;"></i>المعلومات والأرشيف</span>
+                <i class="fa-solid fa-chevron-down accordion-icon"></i>
+            </button>
+            <div id="info" class="accordion-content">
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <% infoMessages.forEach(function(msg) { 
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const displayUntil = msg.display_until ? new Date(msg.display_until) : null;
+                        const isActive = displayUntil && displayUntil >= today;
+                    %>
+                        <div style="background: var(--surface); border: 1px solid var(--border); border-right: 4px solid <%= isActive ? 'var(--secondary)' : 'var(--text-muted)' %>; border-radius: 8px; padding: 15px; opacity: <%= isActive ? '1' : '0.8' %>;">
+                            <div style="font-size: 1.05rem; line-height: 1.6; color: var(--text); white-space: pre-wrap;"><%= msg.message %></div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+            <% } %>
+
+            <!-- Summary Tab -->
+            <button class="accordion-btn active" onclick="toggleAccordion('summary')">
+                <span><i class="fa-solid fa-chart-line" style="margin-left:8px;"></i>الملخص العام</span>
+                <i class="fa-solid fa-chevron-down accordion-icon"></i>
+            </button>
+            <div id="summary" class="accordion-content active">
+            <h3 style="padding: 0 5px; margin-bottom: 15px; color: var(--primary);">الملخص العام للجمعية</h3>
+            <div class="summary-grid">
+                <div class="summary-item total-deposits">
+                    <div class="summary-label" style="background: var(--bg-soft-success); color: var(--secondary);">مجموع الإيداعات</div>
+                    <div class="summary-value" style="color: var(--secondary);">
+                        <%= mainData.totalIncome.toLocaleString('en-US') %> <small>ر.ع</small>
+                    </div>
+                </div>
+                <div class="summary-item total-expenses">
+                    <div class="summary-label" style="background: var(--bg-soft-danger); color: var(--danger);">مجموع المصروفات</div>
+                    <div class="summary-value" style="color: var(--danger);">
+                        <%= mainData.totalExpense.toLocaleString('en-US') %> <small>ر.ع</small>
+                    </div>
+                </div>
+                <div class="summary-item current-balance">
+                    <div class="summary-label" style="background: var(--bg-soft-primary); color: var(--primary);">الرصيد الحالي</div>
+                    <div class="summary-value" style="color: var(--primary);">
+                        <%= mainData.currentBalance.toLocaleString('en-US') %> <small>ر.ع</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Transactions Tab -->
+        <button class="accordion-btn" onclick="toggleAccordion('transactions')">
+            <span><i class="fa-solid fa-list" style="margin-left:8px;"></i>سجل العمليات العام</span>
+            <i class="fa-solid fa-chevron-down accordion-icon"></i>
+        </button>
+        <div id="transactions" class="accordion-content">
+            <div class="table-container">
+                <table class="transactions-table table-fit">
+                    <thead>
+                        <tr>
+                            <th id="th-id" class="sortable" onclick="sortGlobalTransactions('id')"># <i id="sortIcon-id" class="fa-solid fa-sort sort-icon"></i></th>
+                            <th id="th-date" class="sortable" onclick="sortGlobalTransactions('date')">التاريخ <i id="sortIcon-date" class="fa-solid fa-sort sort-icon"></i></th>
+                            <th id="th-subject" class="sortable" onclick="sortGlobalTransactions('subject')">الموضوع <i id="sortIcon-subject" class="fa-solid fa-sort sort-icon"></i></th>
+                            <th id="th-item" class="sortable" onclick="sortGlobalTransactions('item')">البند <i id="sortIcon-item" class="fa-solid fa-sort sort-icon"></i></th>
+                            <th id="th-details" class="sortable" onclick="sortGlobalTransactions('details')">التفاصيل <i id="sortIcon-details" class="fa-solid fa-sort sort-icon"></i></th>
+                            <th id="th-amount" class="sortable" onclick="sortGlobalTransactions('amount')">المبلغ <i id="sortIcon-amount" class="fa-solid fa-sort sort-icon"></i></th>
+                            <th id="th-balance" class="sortable" onclick="sortGlobalTransactions('balance')">الرصيد التراكمي <i id="sortIcon-balance" class="fa-solid fa-sort sort-icon"></i></th>
+                        </tr>
+                    </thead>
+                    <tbody id="globalTransactionsBody">
+                        <% mainData.transactions.forEach((t, index) => { %>
+                        <tr>
+                            <td data-label="#">
+                                <span style="font-weight: bold; color: var(--text-muted);"><%= t.id %></span>
+                            </td>
+                            <td data-label="التاريخ"><%= t.date ? t.date.split('-').reverse().join('/') : '-' %></td>
+                            <td data-label="الموضوع"><%= t.subject %></td>
+                            <td data-label="البند">
+                                <%
+                                    var isMemberItem = Array.isArray(membersList) && membersList.some(function(m){ return String(m.member_code) == String(t.item); });
+                                    var memberName = null;
+                                    if (isMemberItem) {
+                                        var foundMember = membersList.find(function(m){ return String(m.member_code) == String(t.item); });
+                                        memberName = foundMember && foundMember.name ? foundMember.name : null;
+                                    }
+                                    var hideItemText = (!isAdmin) && (t.subject === 'مساهمات الاعضاء');
+                                %>
+                                <%= hideItemText ? '—' : (isMemberItem ? (memberName || t.item) : t.item) %>
+                            </td>
+                            <td data-label="التفاصيل"><%= t.details || '-' %></td>
+                            <td data-label="المبلغ" class="<%= t.amount >= 0 ? 'amount-in' : 'amount-out' %>">
+                                <%= t.amount %>
+                                <% if (t.is_approved === 0) { %>
+                                <span class="badge" style="background: var(--bg-soft-warning); color: var(--text-warning); margin-right:8px;">قيد الموافقة</span>
+                                <% } %>
+                            </td>
+                            <td data-label="الرصيد التراكمي" style="direction: ltr; text-align: right;"><%= t.balance %></td>
+                        </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- My Payments Tab -->
+        <% if (typeof isLoggedIn !== 'undefined' && isLoggedIn && memberData) { %>
+        <button class="accordion-btn member-tab" onclick="toggleAccordion('my-payments')">
+            <span><i class="fa-solid fa-wallet" style="margin-left:8px;"></i>مدفوعاتي</span>
+            <i class="fa-solid fa-chevron-down accordion-icon"></i>
+        </button>
+        <div id="my-payments" class="accordion-content">
+            <div class="expense-card" style="border-left: 5px solid var(--secondary);">
+                <div class="expense-header" style="background: var(--bg-soft-success);">
+                    <div class="expense-title">ملخص مساهماتي</div>
+                    <div class="expense-total amount-in">
+                        الإجمالي: <%= memberData.totalIncome.toLocaleString('en-US') %> ر.ع
+                    </div>
+                </div>
+            </div>
+            
+            
+            
+            <div class="table-container">
+                <table class="table-fit payments-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>التاريخ</th>
+                            <th>عن سنة</th>
+                            <th>المبلغ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% memberData.transactions.forEach((t, index) => { %>
+                        <tr>
+                            <td data-label="#">
+                                <span style="font-weight: bold; color: var(--text-muted);"><%= t.id %></span>
+                            </td>
+                            <td data-label="التاريخ"><%= t.date ? t.date.split('-').reverse().join('/') : '-' %></td>
+                            <td data-label="عن سنة"><%= t.details || '-' %></td>
+                            <td data-label="المبلغ" class="amount-in">
+                                <%= t.amount %>
+                                <% if (t.is_approved === 0) { %>
+                                <span class="badge" style="background: var(--bg-soft-warning); color: var(--text-warning); margin-right:8px;">قيد الموافقة</span>
+                                <% } %>
+                            </td>
+                        </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 16px;">
+                <button type="button" id="toggleNewContributionBtn" style="padding: 12px 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size:1rem; width:100%;">تسجيل مساهمة جديدة</button>
+            </div>
+            
+            <div id="newContributionSection" style="display:none; margin-top: 12px;">
+                <div class="expense-card" style="border-left: 5px solid var(--primary);">
+                    <div class="expense-header">
+                        <div class="expense-title">تسجيل مساهمة جديدة</div>
+                    </div>
+                    <div style="padding: 15px;">
+                        <form action="/jam3ya/transactions/submit" method="POST" id="memberSubmitForm" style="display: grid; gap: 16px;">
+                            <div>
+                                <div style="font-weight:600;color:var(--primary);margin-bottom:6px;">السنة</div>
+                                <input type="number" name="year" value="<%= new Date().getFullYear() %>" style="padding:12px;border:1px solid var(--border);border-radius:8px;width:100%;font-size:1rem;background:var(--input-bg);color:var(--input-text);">
+                            </div>
+                            <div>
+                                <div style="font-weight:600;color:var(--primary);margin-bottom:6px;">المبلغ (ر.ع)</div>
+                                <input type="number" step="0.001" name="amount" value="12" required placeholder="0.000" style="padding:12px;border:1px solid var(--border);border-radius:8px;width:100%;font-size:1rem;background:var(--input-bg);color:var(--input-text);">
+                            </div>
+    
+                            <div>
+                                <button type="button" id="toggleRecipientBtn" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size:1rem;width:100%;">
+                                    <i class="fa-solid fa-user-plus" style="color:inherit;"></i>
+                                    تسجيل المساهمة عن شخص آخر
+                                </button>
+                            </div>
+    
+                            <div id="recipientSection" style="display:none;">
+                            <div style="font-weight:600;color:var(--primary);margin-bottom:6px;">البحث عن عضو بالاسم</div>
+                            
+                            <div style="position:relative;">
+                                <input type="text" id="recipient_name_input" name="recipient_name" placeholder="اكتب الاسم ثم اختر من القائمة" autocomplete="off" style="padding:12px;border:1px solid var(--border);border-radius:8px;width:100%;font-size:1rem;background:var(--input-bg);color:var(--input-text);">
+                                
+                                <div id="custom-members-dropdown" class="custom-dropdown">
+                                    <% if (Array.isArray(membersList)) { membersList.forEach(m => { %>
+                                        <div class="custom-dropdown-item" data-name="<%= m.name %>" data-code="<%= m.member_code %>">
+                                            <%= m.name %>
+                                        </div>
+                                    <% }) } %>
+                                </div>
+                            </div>
+    
+                            <input type="hidden" name="target_member_code" id="target_member_code">
+                            <div style="font-size:0.9rem;color:var(--text-muted);margin-top:8px;">إذا تركت الاسم فارغاً سيتم تسجيل المساهمة لنفسك.</div>
+                        </div>
+    
+                            <button type="submit" style="padding: 12px 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size:1rem;width:100%;">تسجيل المساهمة</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <% } %>
+
+        <!-- Subjects Analysis Tab -->
+        <button class="accordion-btn" onclick="toggleAccordion('expenses')">
+            <span><i class="fa-solid fa-layer-group" style="margin-left:8px;"></i>تصنيف العمليات</span>
+            <i class="fa-solid fa-chevron-down accordion-icon"></i>
+        </button>
+        <div id="expenses" class="accordion-content">
+            <% if (mainData.subjectsList && mainData.subjectsList.length > 0) { %>
+                <% mainData.subjectsList.forEach((group, index) => { %>
+                <div class="expense-card">
+                    <div class="expense-header" onclick="toggleDetails('details-<%= index %>')" style="cursor: pointer;">
+                    <div class="expense-title">
+                        <span class="toggle-icon" id="icon-details-<%= index %>" style="display: inline-block; width: 20px; transition: transform 0.3s;">▶</span> 
+                        <%= group.name %> 
+                        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(آخر تحديث: <%= group.lastDate ? group.lastDate.split('-').reverse().join('/') : 'غير متوفر' %>)</span>
+                    </div>
+                    <div class="expense-total <%= group.total >= 0 ? 'amount-in' : 'amount-out' %>">
+                        الإجمالي: <%= group.total.toLocaleString('en-US') %> ر.ع
+                    </div>
+                </div>
+                    <div id="details-<%= index %>" class="table-container" style="border: none; border-radius: 0; display: none; border-top: 1px solid var(--border);">
+                        <table class="table-fit subject-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>التاريخ</th>
+                                    <th>البند</th>
+                                    <th>التفاصيل</th>
+                                    <th>المبلغ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% group.transactions.forEach(t => { %>
+                                <tr>
+                                    <td data-label="#"><span style="font-weight: bold; color: var(--text-muted);"><%= t.id %></span></td>
+                                    <td data-label="التاريخ"><%= t.date ? t.date.split('-').reverse().join('/') : '-' %></td>
+                                    <td data-label="البند"><%= t.item %></td>
+                                    <td data-label="التفاصيل"><%= t.details || '-' %></td>
+                                    <td data-label="المبلغ" class="<%= t.amount >= 0 ? 'amount-in' : 'amount-out' %>"><%= t.amount %></td>
+                                </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <% }) %>
+            <% } else { %>
+                <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    لا توجد بيانات للعرض
+                </div>
+            <% } %>
+        </div>
+        </div> <!-- End accordion-container -->
+        
+        <div style="margin-top: 30px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+            تم تحديث البيانات تلقائياً من النظام
+        <br><br><br>
+        </div>
+        <div id="chat-widget">
+          <div id="chat-header">
+          <div class="header-left">
+            الجمعية GPT
+            <img id="headerIco"
+                 src="images/processing-header.gif"
+                 width="16"
+                 style="visibility: hidden; vertical-align: middle;">
+          </div>
+        
+          <i class="fa-solid fa-chevron-up accordion-icon" id="headerInd"></i>
+        </div>
+          <div id="chat-messages">
+          </div>
+          <div id="typing">
+            <img src="images/processing-typing.gif" style="vertical-align: middle;" width="10%">
+            <span style="vertical-align: middle;" id="timer">00:00</span>&nbsp;&nbsp;&nbsp;<span><font color="green"><b>جاري المعالجة إنتظر قليلا</b></font></span>
+          </div>
+          <div id="chat-export" style="text-align: center; background-color: azure;">
+            <button id="imgSave" onclick="saveImage();"><i class="fa-solid fa-image"> صورة</i></button>&nbsp;حفظ المحادثة
+            <button id="pdfSave" onclick="savePDF();"><i class="fa-solid fa-file-pdf"> PDF</i></button>
+          </div>
+          <div id="chat-input">
+            <input type="text" id="input" placeholder="اكتب استفسارك...">
+            <button id="send">ارسال</button>
+          </div>
+        </div>
+    </div>
+
+    <script>
+        (function initTheme(){
+            var currentTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', currentTheme);
+            window.toggleTheme = function() {
+                var theme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                document.body.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+            };
+        })();
+        const globalTransactionsSortState = {};
+        function sortGlobalTransactions(field) {
+            const tbody = document.getElementById('globalTransactionsBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const dir = globalTransactionsSortState[field] === 'asc' ? 'desc' : 'asc';
+            globalTransactionsSortState[field] = dir;
+
+            function getColIndex(field) {
+                if (field === 'id') return 0;
+                if (field === 'date') return 1;
+                if (field === 'subject') return 2;
+                if (field === 'item') return 3;
+                if (field === 'details') return 4;
+                if (field === 'amount') return 5;
+                if (field === 'balance') return 6;
+                return 0;
+            }
+            const idx = getColIndex(field);
+
+            function getVal(row, idx, field) {
+                const tds = row.querySelectorAll('td');
+                const td = tds[idx];
+                if (!td) return '';
+                if (field === 'id') {
+                    const badge = td.querySelector('.badge');
+                    return badge ? badge.textContent.trim() : td.textContent.trim();
+                }
+                if (field === 'amount' || field === 'balance') {
+                    return parseFloat(td.textContent.replace(/[^\d\.\-]/g, '')) || 0;
+                }
+                if (field === 'date') {
+                    const txt = td.textContent.trim();
+                    const d = new Date(txt);
+                    return isNaN(d.getTime()) ? txt : d.getTime();
+                }
+                return td.textContent.trim().toLowerCase();
+            }
+
+            rows.sort((a, b) => {
+                const av = getVal(a, idx, field);
+                const bv = getVal(b, idx, field);
+                if (typeof av === 'number' && typeof bv === 'number') {
+                    return dir === 'asc' ? av - bv : bv - av;
+                }
+                if (typeof av === 'string' && typeof bv === 'string') {
+                    return dir === 'asc' ? av.localeCompare(bv, 'ar', { sensitivity: 'base' }) : bv.localeCompare(av, 'ar', { sensitivity: 'base' });
+                }
+                return dir === 'asc' ? av - bv : bv - av;
+            });
+            rows.forEach(r => tbody.appendChild(r));
+
+            ['id','date','subject','item','details','amount','balance'].forEach(f => {
+                const th = document.getElementById('th-' + f);
+                const icon = document.getElementById('sortIcon-' + f);
+                if (th && icon) {
+                    th.classList.remove('active');
+                    icon.className = 'fa-solid fa-sort sort-icon';
+                }
+            });
+            const currentTh = document.getElementById('th-' + field);
+            const currentIcon = document.getElementById('sortIcon-' + field);
+            if (currentTh && currentIcon) {
+                currentTh.classList.add('active');
+                currentIcon.className = dir === 'asc' ? 'fa-solid fa-sort-up sort-icon' : 'fa-solid fa-sort-down sort-icon';
+            }
+        }
+
+        function toggleAccordion(id) {
+            const content = document.getElementById(id);
+            const btn = content.previousElementSibling;
+            
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                if(btn) btn.classList.remove('active');
+            } else {
+                // Close others
+                document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.accordion-btn').forEach(b => b.classList.remove('active'));
+                
+                content.classList.add('active');
+                if(btn) btn.classList.add('active');
+            }
+        }
+
+        function toggleDetails(id) {
+            var el = document.getElementById(id);
+            var icon = document.getElementById('icon-' + id);
+            if (el.style.display === "none") {
+                el.style.display = "block";
+                if(icon) icon.style.transform = "rotate(90deg)";
+            } else {
+                el.style.display = "none";
+                if(icon) icon.style.transform = "rotate(0deg)";
+            }
+        }
+        
+        const membersList = <%- JSON.stringify(membersList || []) %>;
+        
+        // Custom Dropdown Logic
+        const recipientInput = document.getElementById('recipient_name_input');
+        const customDropdown = document.getElementById('custom-members-dropdown');
+        const codeInput = document.getElementById('target_member_code');
+        const dropdownItems = document.querySelectorAll('.custom-dropdown-item');
+
+        if (recipientInput && customDropdown && codeInput) {
+            // Show dropdown on focus
+            recipientInput.addEventListener('focus', function() {
+                filterDropdown(this.value);
+            });
+
+            // Hide dropdown on click outside (handled by blur with delay)
+            recipientInput.addEventListener('blur', function() {
+                setTimeout(() => {
+                    customDropdown.style.display = 'none';
+                }, 200);
+            });
+
+            // Filter on input
+            recipientInput.addEventListener('input', function() {
+                const val = this.value;
+                filterDropdown(val);
+                
+                // Also update hidden code if exact match typed manually
+                const found = membersList.find(m => m && m.name === val);
+                codeInput.value = found ? found.member_code : '';
+            });
+
+            // Handle item selection
+            dropdownItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const name = this.getAttribute('data-name');
+                    const code = this.getAttribute('data-code');
+                    
+                    recipientInput.value = name;
+                    codeInput.value = code;
+                    customDropdown.style.display = 'none';
+                });
+            });
+
+            function filterDropdown(query) {
+                const val = query.toLowerCase();
+                let hasVisible = false;
+                dropdownItems.forEach(item => {
+                    const name = item.getAttribute('data-name').toLowerCase();
+                    if (name.includes(val)) {
+                        item.style.display = 'block';
+                        hasVisible = true;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                customDropdown.style.display = hasVisible ? 'block' : 'none';
+            }
+        }
+        const toggleRecipientBtn = document.getElementById('toggleRecipientBtn');
+        const recipientSection = document.getElementById('recipientSection');
+        if (toggleRecipientBtn && recipientSection) {
+            toggleRecipientBtn.addEventListener('click', function() {
+                const isHidden = recipientSection.style.display === 'none' || recipientSection.style.display === '';
+                recipientSection.style.display = isHidden ? 'block' : 'none';
+            });
+        }
+        const toggleNewContributionBtn = document.getElementById('toggleNewContributionBtn');
+        const newContributionSection = document.getElementById('newContributionSection');
+        if (toggleNewContributionBtn && newContributionSection) {
+            toggleNewContributionBtn.addEventListener('click', function() {
+                const isHidden = newContributionSection.style.display === 'none' || newContributionSection.style.display === '';
+                newContributionSection.style.display = isHidden ? 'block' : 'none';
+            });
+        }
+    </script>
+    <script>
+const chatHeader = document.getElementById('chat-header');
+const chatMessages = document.getElementById('chat-messages');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const typing = document.getElementById('typing');
+const chatExport = document.getElementById('chat-export');
+const pdfSave = document.getElementById('pdfSave');
+const imgSave = document.getElementById('imgSave');
+const headerIco = document.getElementById('headerIco');
+const icon = document.getElementById("headerInd");
+
+let conversation_id= '';
+let instructions = true;
+let getAnswer = false;
+
+chatHeader.addEventListener('click', () => {
+  const display = window.getComputedStyle(chatMessages).display;
+  chatMessages.style.display = display === 'none' ? 'block' : 'none';
+  document.getElementById('chat-input').style.display = display === 'none' ? 'flex' : 'none';
+
+  if(chatMessages.style.display==='none') {
+    icon.classList.remove("fa-chevron-down");
+    icon.classList.add("fa-chevron-up");
+    if (getAnswer == false && chatMessages.children.length > 0)  {
+      headerIco.style.visibility = "visible";
+    }
+    typing.style.display = 'none';
+    showExport = false;
+    showChatExport();
+  } else {
+    icon.classList.remove("fa-chevron-up");
+    icon.classList.add("fa-chevron-down");
+    headerIco.style.visibility = "hidden";
+    if (getAnswer == false && chatMessages.children.length > 0)  {
+      typing.style.display = 'block';
+    }
+  }
+  scrollToBottom();
+});
+
+function scrollToBottom() {
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+let totalSeconds = 0;
+let interval = null;
+const timerDiv = document.getElementById("timer");
+
+async function sendMessage() {
+
+  sendBtn.disabled = true;
+  
+  if (interval !== null) {
+    clearInterval(interval);
+    totalSeconds=0;
+    timerDiv.textContent= "00:00"
+  }
+
+  interval = setInterval(() => {
+    totalSeconds++;
+
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    timerDiv.textContent = String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+  }, 1000);
+
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  if(instructions) {
+    const instr = document.createElement('div');
+    instr.innerHTML = "<sup>- إضغط مرتين على سؤالك لنسخه وتعديله</sup>";
+    instr.innerHTML = instr.innerHTML + "<br>" + "<sup>- إضغط مرتين على الرد لحفظ المحادثة</sup>";
+    instr.innerHTML = instr.innerHTML + "<br>" + "<sup>- إضغط على السؤال المقترح وبعدها ارسال</sup>";
+    instr.style.textAlign = "right";
+    instr.style.background = 'azure';
+    chatMessages.appendChild(instr);
+    instructions= false;
+  }
+
+  if(showExport==false) {
+    showChatExport();
+  }
+  
+  const userBubble = document.createElement('div');
+  userBubble.classList.add('message', 'user');
+  userBubble.textContent = msg;
+  chatMessages.appendChild(userBubble);
+
+  userBubble.addEventListener('dblclick', () => {
+      if(getAnswer)
+        input.value= userBubble.textContent;
+  });
+  
+  input.value = '';
+  const intervalId = setInterval(() => {
+    scrollToBottom();
+    clearInterval(intervalId);
+  }, 10);
+
+  typing.style.display = 'block';
+  input.disabled = true;
+  pdfSave.disabled = true;
+  imgSave.disabled = true;
+
+  try {
+    getAnswer = false;
+    const response = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, conversationId: conversation_id})
+    });
+
+    const data = await response.json();
+    typing.style.display = 'none';
+
+    conversation_id= data.reply.conversation_id;
+
+    const botBubble = document.createElement('div');
+    botBubble.style= "overflow: visible;"
+    botBubble.classList.add('message', 'bot');
+    botBubble.addEventListener('dblclick', showChatExport);
+    if(data.reply.content !== undefined)
+      if(data.reply.content.length > 0)
+        botBubble.innerHTML = data.reply.content[0].replaceAll('\n', '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') + '<br>';
+    if(data.reply.table !== undefined) {
+      const accArea = document.createElement('div'); 
+      accArea.innerHTML = `
+        <div class="accordion-gpt">
+          <div class="accordion-item-gpt">
+            <div class="accordion-header-gpt">عرض البيانات كجدول</div>
+            <div class="accordion-content-gpt">
+              <div class="accordion-inner-gpt">
+                ${renderTable(data.reply.table)}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      botBubble.appendChild(accArea);
+      const headers = accArea.querySelectorAll(".accordion-header-gpt");
+
+      headers.forEach(header => {
+      header.addEventListener("click", () => {
+        const content = header.nextElementSibling;
+        const isOpen = header.classList.contains("active");
+
+        headers.forEach(h => {
+          h.classList.remove("active");
+          h.nextElementSibling.style.maxHeight = null;
+        });
+
+        if (!isOpen) {
+          header.classList.add("active");
+          content.style.maxHeight = "none";
+          const height = content.scrollHeight;
+          content.style.maxHeight = height + "px";
+        }
+        });
+      });
+    }
+    if (data.reply.contentQues !== undefined) {
+      const quesDiv = document.createElement("div");
+      quesDiv.innerHTML = data.reply.contentQues;
+      botBubble.appendChild(quesDiv);
+    }
+    chatMessages.appendChild(botBubble);
+    
+    if(data.reply.suggestedQuestions !== undefined) {
+      const questionsArea = document.createElement('questionsArea');
+      questionsArea.innerHTML = "<b>" + "أسئلة مقترحة" + "</b>"
+      const questions = data.reply.suggestedQuestions;
+      questions.forEach(q => {
+        const btn = document.createElement("button");
+        btn.textContent = '- ' + q;
+        btn.onclick = () => {
+        if (!input.disabled) {
+          input.value = btn.textContent.replace("- ", "");
+          }
+        };
+        btn.style= "font-size: 16px;"
+        btn.style.color = '#FF4500';
+        btn.style.background = 'none';
+        btn.style.border = 'none';
+        btn.style.padding = '0';
+        btn.style.cursor = 'pointer';
+        btn.style.display = "flex";
+        btn.style.flexDirection = "column";
+        btn.style.gap = "10px";
+        btn.style.textAlign = "right",
+        btn.style.width="100%",
+        questionsArea.appendChild(btn);
+      });
+      chatMessages.appendChild(questionsArea)
+    }
+
+    if(data.reply.created_timestamp !== undefined) {
+      const time = document.createElement('div');
+      time.style.direction = 'ltr';
+      time.innerHTML = '<sub>' + data.reply.created_timestamp.replace('AM','ص').replace('PM','م'); + '</sub>';
+      chatMessages.appendChild(time);
+    }
+
+    const spacesArea = document.createElement('spacesArea');
+    spacesArea.innerHTML="<br>"
+    chatMessages.appendChild(spacesArea)
+
+    scrollToBottom();
+    headerIco.style.visibility = "hidden";
+    chatHeader.style.backgroundColor="green";
+
+    setTimeout(() => {
+      chatHeader.style.backgroundColor="#4A90E2";
+    }, 3000);
+
+  } catch (error) {
+    typing.style.display = 'none';
+    const errorBubble = document.createElement('div');
+    errorBubble.classList.add('message', 'bot');
+    errorBubble.textContent = "نرجو التأكد من إتصالك بالإنترنت عدا ذلك قم بإبلاغ القائمين على الموقع بحدوث مشكله";
+    errorBubble.style.color = 'red';
+    errorBubble.style.textAlign = "center";
+    chatMessages.appendChild(errorBubble);
+    const spacesArea = document.createElement('spacesArea');
+    spacesArea.innerHTML="<br>"
+    chatMessages.appendChild(spacesArea)
+    scrollToBottom();
+  }
+  input.disabled = false;
+  pdfSave.disabled = false;
+  imgSave.disabled = false;
+  sendBtn.disabled = false;
+  getAnswer = true;
+}
+
+sendBtn.addEventListener('click', sendMessage);
+input.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+
+showExport = true;
+function showChatExport() {
+  if(chatMessages.children.length > 0 && typing.style.display === 'none') {
+    if(showExport) 
+      chatExport.style.display = 'block';
+    else
+      chatExport.style.display = 'none';
+    showExport= !showExport;
+  }
+  //scrollToBottom();
+}
+
+function renderTable(table) {
+  
+  const columns = table.manifest.schema.columns;
+
+  let html = '';
+
+  if(table?.result?.data_array) {
+
+    table.result.data_array.forEach(row => {
+      html += `
+        <table border='0'style='width: 100%;table-layout: fixed; border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 8px;
+  overflow: hidden;'>`;
+
+      columns.forEach((col, index) => {
+        if (row[index] !== null) {
+          html += `
+            <tr style='text-align:right;'>
+              <td style='background:#d8d6d6;'>
+                ${col.name.replace('_', ' ').toUpperCase()}
+              </td>
+              <td td style='background:#e3e2e2;'>
+                ${row[index]}
+              </td>
+            </tr>
+          `;
+        }
+      });
+
+    html += `
+      </table><br>
+    `;});
+  } else {
+    html += `
+        <table border='0'style='width: 100%;table-layout: fixed;'>
+          <tr><td style="background:#e5e3e3">لا توجد بيانات</td></tr></table>
+      `;
+  }
+  return html;
+}
+
+function saveImage() {
+
+  const widget = document.getElementById("chat-widget");
+  const messages = document.getElementById("chat-messages");
+
+  // Save original styles
+  const original = {
+    widgetMaxHeight: widget.style.maxHeight,
+    widgetOverflow: widget.style.overflow,
+    messagesHeight: messages.style.height,
+    messagesOverflow: messages.style.overflow
+  };
+
+  // Remove parent constraints
+  widget.style.maxHeight = "none";
+  widget.style.overflow = "visible";
+
+  // Expand messages
+  messages.style.height = messages.scrollHeight + "px";
+  messages.style.overflow = "visible";
+
+  html2canvas(widget, {
+    scale: 2,
+    useCORS: true
+  }).then(canvas => {
+
+    // Restore original styles
+    widget.style.maxHeight = original.widgetMaxHeight;
+    widget.style.overflow = original.widgetOverflow;
+    messages.style.height = original.messagesHeight;
+    messages.style.overflow = original.messagesOverflow;
+
+    // Download image
+    const link = document.createElement("a");
+    link.download = "jam3ya-gpt-img.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+
+  }).catch(err => {
+    //console.error("Capture failed:", err);
+
+    // Restore styles on error
+    widget.style.maxHeight = original.widgetMaxHeight;
+    widget.style.overflow = original.widgetOverflow;
+    messages.style.height = original.messagesHeight;
+    messages.style.overflow = original.messagesOverflow;
+  });
+  const intervalId = setInterval(() => {
+    scrollToBottom();
+    clearInterval(intervalId);
+  }, 100);
+}
+
+function savePDF() {
+
+  const widget = document.getElementById("chat-widget");
+  const messages = document.getElementById("chat-messages");
+
+  const original = {
+    widgetMaxHeight: widget.style.maxHeight,
+    widgetOverflow: widget.style.overflow,
+    messagesHeight: messages.style.height,
+    messagesOverflow: messages.style.overflow
+  };
+
+  widget.style.maxHeight = "none";
+  widget.style.overflow = "visible";
+  messages.style.height = messages.scrollHeight + "px";
+  messages.style.overflow = "visible";
+
+  html2canvas(widget, {
+    scale: 2,
+    useCORS: true
+  }).then(canvas => {
+
+    // Restore styles
+    widget.style.maxHeight = original.widgetMaxHeight;
+    widget.style.overflow = original.widgetOverflow;
+    messages.style.height = original.messagesHeight;
+    messages.style.overflow = original.messagesOverflow;
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    const imgWidth = pageWidth * 0.25;     // 🔹 smaller
+    const xOffset = (pageWidth - imgWidth) / 2; // center
+
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    const imgData = canvas.toDataURL("image/png");
+
+    pdf.addImage(imgData, "PNG", xOffset, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", xOffset, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save("jam3ya-gpt-pdf.pdf");
+  });
+  const intervalId = setInterval(() => {
+    scrollToBottom();
+    clearInterval(intervalId);
+  }, 100);
+}
+</script>
+</body>
+</html>

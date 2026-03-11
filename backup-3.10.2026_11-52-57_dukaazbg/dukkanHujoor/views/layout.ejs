@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || 'دكان الحجور' %></title>
+    <link rel="stylesheet" href="/css/style.css?v=<%= Date.now() %>">
+</head>
+<body data-theme="light">
+
+    <header>
+        <div class="header-content">
+            <a href="/" class="logo">
+                <img src="/logo.png" alt="شعار دكان الحجور" class="logo-img">
+                <span class="logo-text">دكان الحجور</span>
+            </a>
+            
+            <nav class="main-nav" id="mainNav">
+                <ul class="nav-links desktop-links" style="list-style: none; margin: 0; padding: 0; display: flex; gap: 1rem; align-items: center;">
+    
+                    <!-- ======== بداية تعديل قائمة سطح المكتب ======== -->
+                    <!-- روابط عامة للجميع -->
+                    <li><a href="/" class="nav-link">الرئيسية</a></li>
+<li><a href="/market" class="nav-link">🛍️ تصفح السوق</a></li>
+<li><a href="/dukkanlar" class="nav-link">🏪 الدكاكين</a></li>
+
+                    <% if (typeof user !== 'undefined' && user && user.id) { %>
+                        <!-- روابط المستخدم المسجل دخوله -->
+                        <li><a href="/my-products" class="nav-link">منتجاتي</a></li>
+                        <li><a href="/add-product" class="btn btn-primary">➕ إضافة منتج</a></li>
+                        
+                        <% if (user.is_admin) { %>
+                            <li><a href="/admin" class="nav-link admin-link-header">⚙️ لوحة التحكم</a></li>
+                        <% } %>
+
+                        <li class="user-info-desktop">
+                            <a href="/profile" class="user-profile-link" style="text-decoration: none; display: flex; align-items: center; gap: 0.75rem;">
+                                <div class="user-avatar-desktop">
+                                    <% if (user.avatar) { %>
+                                        <img src="/uploads/<%= user.avatar %>" alt="صورة شخصية">
+                                    <% } else { %>
+                                        <%= user.name.charAt(0).toUpperCase() %>
+                                    <% } %>
+                                </div>
+                                <span class="user-name-desktop"><%= user.name %></span>
+                                <% if (user.is_admin) { %>
+                                    <span class="admin-badge" title="مدير النظام">👑</span>
+                                <% } %>
+                            </a>
+                        </li>
+                        <li><a href="/logout" class="nav-link logout-link">تسجيل الخروج</a></li>
+                    <% } else { %>
+                        <!-- روابط الزائر -->
+                        <li><a href="/login" class="nav-link">تسجيل الدخول</a></li>
+                        <li><a href="/register" class="btn btn-secondary">إنشاء حساب</a></li>
+                    <% } %>
+                    <!-- ======== نهاية تعديل قائمة سطح المكتب ======== -->
+                </ul>
+            </nav>
+
+            <div class="header-controls" style="display: flex; align-items: center; gap: 1rem;">
+                <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="تبديل الوضع">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="فتح القائمة">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="vision-banner">
+        <div class="container">
+            <p class="vision-text">💬 تواصل مباشر بين البائع والمشتري</p>
+        </div>
+    </div>
+
+    <!-- Mobile slide-out menu -->
+    <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+    <div class="mobile-nav" id="mobileNav">
+        <button class="nav-close" id="navClose">&times;</button>
+        <ul class="nav-links">
+            <!-- ======== بداية تعديل قائمة الهاتف ======== -->
+            <li><a href="/">الرئيسية</a></li>
+<li><a href="/market">🛍️ تصفح السوق</a></li>
+<li><a href="/dukkanlar">🏪 الدكاكين</a></li>
+             <% if (typeof user !== 'undefined' && user && user.id) { %>
+                <li><a href="/add-product">إضافة منتج</a></li>
+                <li><a href="/my-products">منتجاتي</a></li>
+                <li><a href="/profile">الملف الشخصي</a></li
+                <% if (user.is_admin) { %>
+                    <li><a href="/admin" style="color: var(--warning-color);">لوحة التحكم</a></li>
+                <% } %>
+                <hr style="border-color: rgba(128,128,128,0.2); margin: 1rem 0;">
+                <li><a href="/logout" style="color: var(--error-color);">تسجيل الخروج</a></li>
+            <% } else { %>
+                <li><a href="/login">تسجيل الدخول</a></li>
+                <li><a href="/register">إنشاء حساب</a></li>
+            <% } %>
+            <!-- ======== نهاية تعديل قائمة الهاتف ======== -->
+        </ul>
+    </div>
+
+    <main>
+        <div class="container">
+            <%- body %>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; <%= new Date().getFullYear() %> دكان الحجور - جميع الحقوق محفوظة.</p>
+    </footer>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">جاري معالجة طلبك... الرجاء الانتظار</p>
+    </div>
+
+   <script>
+    // =========================================================================
+    // الدوال العامة (المتاحة في كل الصفحات)
+    // =========================================================================
+
+    /**
+     * تظهر شاشة التحميل الضبابية.
+     */
+    function showLoadingOverlay() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('visible');
+        }
+    }
+
+    /**
+     * تفتح نافذة منبثقة لعرض فيديو يوتيوب.
+     * @param {string} youtubeLink - رابط الفيديو.
+     */
+    // استبدل دالة openVideoModal القديمة بهذه النسخة المحسنة
+// --- دالة فتح نافذة الفيديو ---
+function openVideoModal(youtubeLink) {
+    let videoId = null;
+    
+    // هذا التعبير النمطي الذكي يبحث عن معرّف الفيديو في جميع الصيغ الشائعة
+    // (watch?v=, shorts/, youtu.be/, /embed/)
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|embed|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = youtubeLink.match(youtubeRegex);
+
+    if (match && match[1]) {
+        videoId = match[1];
+    }
+
+    // إذا لم يتم العثور على المعرّف بعد كل هذا البحث، يكون الرابط غير صالح
+    if (!videoId) {
+        alert('رابط الفيديو غير صالح أو غير مدعوم.');
+        console.error('Could not extract YouTube video ID from:', youtubeLink);
+        return;
+    }
+
+    const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+
+    // ... باقي كود إنشاء النافذة المنبثقة يبقى كما هو ...
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'video-modal-overlay';
+    modalOverlay.innerHTML = `
+        <div class="video-modal-content">
+            <button class="video-modal-close-btn" onclick="closeVideoModal()">×</button>
+            <div class="video-wrapper">
+                <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modalOverlay);
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeVideoModal();
+    });
+}
+
+
+    /**
+     * تغلق نافذة الفيديو المنبثقة.
+     */
+    function closeVideoModal() {
+        const modalOverlay = document.querySelector('.video-modal-overlay');
+        if (modalOverlay) {
+            document.body.removeChild(modalOverlay);
+        }
+    }
+    
+    
+    // ======== بداية دوال عرض الصور ========
+    /**
+     * تفتح نافذة منبثقة لعرض صورة المنتج بشكل أكبر.
+     * @param {string} imageSrc - مسار الصورة.
+     * @param {string} productName - اسم المنتج (للنص البديل).
+     */
+    function openImageModal(imageSrc, productName) {
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'image-modal-overlay';
+        modalOverlay.innerHTML = `
+            <div class="image-modal-content">
+                <button class="image-modal-close-btn" onclick="closeImageModal()">×</button>
+                <img src="${imageSrc}" alt="${productName}">
+            </div>
+        `;
+        document.body.appendChild(modalOverlay);
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closeImageModal();
+        });
+    }
+
+    /**
+     * تغلق نافذة عرض الصور.
+     */
+    function closeImageModal() {
+        const modalOverlay = document.querySelector('.image-modal-overlay');
+        if (modalOverlay) {
+            document.body.removeChild(modalOverlay);
+        }
+    }
+    // ======== نهاية دوال عرض الصور ========
+    
+// --- ربط الأحداث باستخدام التفويض (Event Delegation) ---
+document.body.addEventListener('click', function(event) {
+
+    // تحقق مما إذا كان العنصر المنقور عليه (أو أحد آبائه) هو زر فيديو
+    const videoButton = event.target.closest('.video-btn');
+    if (videoButton) {
+        const link = videoButton.getAttribute('data-video-link');
+        if (link) {
+            openVideoModal(link);
+        }
+    }
+             // ======== بداية ربط حدث النقر بالصور ========
+            // تحقق مما إذا كان العنصر المنقور عليه هو صورة منتج قابلة للتكبير
+            const zoomableImage = event.target.closest('.product-image-zoomable');
+            if (zoomableImage) {
+                const imageSrc = zoomableImage.getAttribute('src');
+                const productName = zoomableImage.getAttribute('alt');
+                if (imageSrc) {
+                    openImageModal(imageSrc, productName);
+                }
+            }
+            // ======== نهاية ربط حدث النقر بالصور =======
+    // يمكنك إضافة المزيد من "المستمعين" هنا في المستقبل
+    // const anotherButton = event.target.closest('.another-class');
+    // if (anotherButton) { ... }
+});
+
+    // =========================================================================
+    // الكود الذي يعمل بعد تحميل الصفحة بالكامل
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // --- وظائف تبديل الثيم ---
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const themeIcon = themeToggle.querySelector('.theme-icon');
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', currentTheme);
+            themeIcon.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+
+            window.toggleTheme = function() {
+                let theme = document.body.getAttribute('data-theme');
+                if (theme === 'dark') {
+                    theme = 'light';
+                    themeIcon.textContent = '🌙';
+                } else {
+                    theme = 'dark';
+                    themeIcon.textContent = '☀️';
+                }
+                document.body.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+            }
+        }
+
+        // --- وظائف القائمة المنسدلة للهاتف ---
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const mobileNav = document.getElementById('mobileNav');
+        const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+        const navClose = document.getElementById('navClose');
+
+        if (mobileMenuToggle && mobileNav && mobileNavOverlay && navClose) {
+            function openNav() {
+                mobileNav.classList.add('open');
+                mobileNavOverlay.classList.add('open');
+            }
+
+            function closeNav() {
+                mobileNav.classList.remove('open');
+                mobileNavOverlay.classList.remove('open');
+            }
+
+            mobileMenuToggle.addEventListener('click', openNav);
+            navClose.addEventListener('click', closeNav);
+            mobileNavOverlay.addEventListener('click', closeNav);
+        }
+    });
+</script>
+</body>
+</html>
