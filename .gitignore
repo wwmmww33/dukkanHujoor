@@ -3,6 +3,8 @@ node_modules/
 
 # Environment variables
 .env
+.env.*
+env
 
 # Database files
 *.sqlite
@@ -29,6 +31,9 @@ tmp/
 *.sql
 *.xlsx
 *.bak
+
+# Hosting backups / exports
+backup-*/
 
 # Optional: Ignore specific data files if they are not already covered
 dukaazbg_jam3yatKA
