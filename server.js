@@ -108,6 +108,37 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 
+// Email transporter configuration (supports MAIL_* and SMTP_* env names)
+const mailHost = process.env.MAIL_HOST || process.env.SMTP_HOST;
+const mailPort = Number(process.env.MAIL_PORT || process.env.SMTP_PORT || 465);
+const mailUser = process.env.MAIL_USER || process.env.EMAIL_USER;
+const mailPass = process.env.MAIL_PASS || process.env.EMAIL_PASS;
+const mailFromRaw = (process.env.MAIL_FROM || '').trim();
+const mailSecureRaw = process.env.MAIL_SECURE || process.env.SMTP_SECURE;
+const mailSecure = typeof mailSecureRaw === 'string'
+    ? mailSecureRaw.toLowerCase() === 'true'
+    : mailPort === 465;
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+const resolvedFromEmail = isValidEmail(mailFromRaw)
+    ? mailFromRaw
+    : (isValidEmail(mailUser) ? mailUser : 'no-reply@localhost.localdomain');
+
+let transporter = null;
+if (mailHost && mailUser && mailPass) {
+    transporter = nodemailer.createTransport({
+        host: mailHost,
+        port: mailPort,
+        secure: mailSecure,
+        auth: {
+            user: mailUser,
+            pass: mailPass
+        }
+    });
+} else {
+    console.warn('Mail transporter is not configured. Missing MAIL/SMTP host or credentials.');
+}
+
 let pool;
 if (dbAvailable) {
     try {
@@ -129,6 +160,64 @@ if (dbAvailable) {
 } else {
     pool = { execute: async () => { throw new Error("DB Unavailable"); } };
 }
+
+let resetColumnsEnsured = false;
+const ensureResetPasswordColumns = async () => {
+    if (resetColumnsEnsured) return;
+
+    const statements = [
+        "ALTER TABLE users ADD COLUMN reset_password_token VARCHAR(255) NULL",
+        "ALTER TABLE users ADD COLUMN reset_password_expires DATETIME NULL"
+    ];
+
+    for (const sql of statements) {
+        try {
+            await pool.execute(sql);
+        } catch (e) {
+            const msg = (e && e.message ? e.message : '').toLowerCase();
+            const code = e && e.code ? e.code : '';
+            const duplicateColumn =
+                code === 'ER_DUP_FIELDNAME' ||
+                msg.includes('duplicate column') ||
+                msg.includes('duplicate column name');
+
+            if (!duplicateColumn) {
+                throw e;
+            }
+        }
+    }
+
+    resetColumnsEnsured = true;
+};
+
+let productAppColumnsEnsured = false;
+const ensureProductAppColumns = async () => {
+    if (productAppColumnsEnsured) return;
+
+    const statements = [
+        "ALTER TABLE products ADD COLUMN product_type VARCHAR(20) NOT NULL DEFAULT 'physical'",
+        "ALTER TABLE products ADD COLUMN app_file_path VARCHAR(255) NULL"
+    ];
+
+    for (const sql of statements) {
+        try {
+            await pool.execute(sql);
+        } catch (e) {
+            const msg = (e && e.message ? e.message : '').toLowerCase();
+            const code = e && e.code ? e.code : '';
+            const duplicateColumn =
+                code === 'ER_DUP_FIELDNAME' ||
+                msg.includes('duplicate column') ||
+                msg.includes('duplicate column name');
+
+            if (!duplicateColumn) {
+                throw e;
+            }
+        }
+    }
+
+    productAppColumnsEnsured = true;
+};
 
 // Global DB Check Middleware
 app.use((req, res, next) => {
@@ -334,9 +423,139 @@ app.use((req, res, next) => { res.locals.user = req.session.user || null; res.lo
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage, limits: { fileSize: 10 * 1024 * 1024 } });
+const productUpload = multer({ storage: storage, limits: { fileSize: 50 * 1024 * 1024 } });
+const uploadProductFiles = productUpload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'app_file', maxCount: 1 }
+]);
 
 const requireAuth = (req, res, next) => { if (!req.session.user) return res.redirect('/login'); next(); };
 const requireAdmin = (req, res, next) => { if (!req.session.user || !req.session.user.is_admin) return res.redirect('/'); next(); };
+
+const formatSqlDateTime = (date = new Date()) => {
+    const pad = (v) => String(v).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
+const generateActivationCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for (let i = 0; i < 10; i += 1) out += chars[Math.floor(Math.random() * chars.length)];
+    return out;
+};
+
+const activationSecret = process.env.APP_ACTIVATION_SECRET || process.env.SESSION_SECRET || 'dukan-activation-secret';
+const normalizePhone = (value = '') => String(value).replace(/\D/g, '');
+
+const buildPhoneCandidates = (value = '') => {
+    const raw = String(value || '').trim();
+    const digits = normalizePhone(raw);
+    return Array.from(new Set([
+        raw,
+        digits,
+        digits.length === 8 ? `+968${digits}` : null,
+        digits.length === 8 ? `968${digits}` : null,
+        digits.startsWith('968') && digits.length >= 11 ? digits.slice(-8) : null,
+        digits.startsWith('968') && digits.length >= 11 ? `+${digits}` : null
+    ].filter(Boolean)));
+};
+
+const buildLicenseToken = ({ appName, phone, deviceId, activationCode }) => {
+    const payload = [appName || '', normalizePhone(phone), deviceId || '', activationCode || ''].join('|');
+    return crypto.createHmac('sha256', activationSecret).update(payload).digest('hex');
+};
+
+const editorMetaLeakPattern = /text\/x-generic\s+index\.ejs\s*\(\s*html document,\s*utf-8 unicode text,\s*with very long lines,\s*with crlf line terminators\s*\)/gi;
+const sanitizeDisplayText = (value) => String(value == null ? '' : value).replace(editorMetaLeakPattern, '').trim();
+const sanitizeProductForView = (product) => ({
+    ...product,
+    title: sanitizeDisplayText(product.title),
+    name: sanitizeDisplayText(product.name),
+    description: sanitizeDisplayText(product.description)
+});
+
+const activationPayload = (row, deviceId) => ({
+    id: row.id,
+    app_name: row.app_name,
+    phone: row.phone,
+    status: row.status,
+    is_activated: Number(row.is_activated) === 1,
+    expiry_date: row.expiry_date,
+    activation_date: row.activation_date,
+    device_id: row.device_id || null,
+    license_token: buildLicenseToken({
+        appName: row.app_name,
+        phone: row.phone,
+        deviceId: deviceId || row.device_id || '',
+        activationCode: row.activation_code
+    })
+});
+
+const fetchActivationRow = async ({ appName, phone, activationCode }) => {
+    const phoneCandidates = buildPhoneCandidates(phone);
+    if (!phoneCandidates.length) return null;
+
+    const normalizedPhoneSet = new Set(phoneCandidates.map(normalizePhone).filter(Boolean));
+    const normalizedCode = String(activationCode || '').trim().toUpperCase();
+    if (!normalizedCode) return null;
+
+    const hasAppName = !!String(appName || '').trim();
+
+    // First pass: with app_name when provided.
+    if (hasAppName) {
+        const [strictRows] = await pool.execute(
+            `SELECT * FROM app_activations
+             WHERE app_name = ?
+               AND UPPER(TRIM(activation_code)) = ?
+             ORDER BY id DESC
+             LIMIT 50`,
+            [String(appName).trim(), normalizedCode]
+        );
+
+        const strictMatch = (strictRows || []).find((row) => normalizedPhoneSet.has(normalizePhone(row.phone || '')));
+        if (strictMatch) return strictMatch;
+    }
+
+    // Fallback: phone + activation_code only (useful when app_name sent from mobile is different).
+    const [fallbackRows] = await pool.execute(
+        `SELECT * FROM app_activations
+         WHERE UPPER(TRIM(activation_code)) = ?
+         ORDER BY id DESC
+         LIMIT 100`,
+        [normalizedCode]
+    );
+
+    return (fallbackRows || []).find((row) => normalizedPhoneSet.has(normalizePhone(row.phone || ''))) || null;
+};
+
+const fetchActivationRequestRow = async ({ appName, phone, deviceId }) => {
+    const normalizedAppName = String(appName || '').trim();
+    const phoneCandidates = buildPhoneCandidates(phone);
+    const normalizedDeviceId = String(deviceId || '').trim();
+    if (!normalizedAppName || (!phoneCandidates.length && !normalizedDeviceId)) return null;
+
+    const normalizedPhoneSet = new Set(phoneCandidates.map(normalizePhone).filter(Boolean));
+
+    const [rows] = await pool.execute(
+        `SELECT * FROM app_activations
+         WHERE app_name = ?
+         ORDER BY id DESC
+         LIMIT 300`,
+        [normalizedAppName]
+    );
+
+    if (normalizedDeviceId) {
+        const byDevice = (rows || []).find((row) => String(row.device_id || '').trim() === normalizedDeviceId);
+        if (byDevice) return byDevice;
+    }
+
+    if (normalizedPhoneSet.size) {
+        const matchesByPhone = (rows || []).filter((row) => normalizedPhoneSet.has(normalizePhone(row.phone || '')));
+        if (matchesByPhone.length) return matchesByPhone[0];
+    }
+
+    return null;
+};
 
 const compressImage = async (fileBuffer) => {
     if (!fileBuffer) return null;
@@ -360,6 +579,25 @@ const compressImage = async (fileBuffer) => {
         return null;
     }
 };
+
+const saveUploadedAppFile = async (file) => {
+    if (!file) return null;
+
+    const allowedExt = new Set(['.apk', '.aab', '.xapk', '.zip']);
+    const originalName = String(file.originalname || 'application-file').trim();
+    const ext = path.extname(originalName).toLowerCase();
+
+    if (!allowedExt.has(ext)) {
+        throw new Error('Unsupported app file extension');
+    }
+
+    const uniquePart = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const filename = `app-${uniquePart}${ext}`;
+    const targetPath = path.join(__dirname, 'uploads', filename);
+
+    await fs.writeFile(targetPath, file.buffer);
+    return filename;
+};
 // Jam3ya reminders moved to services/jam3yaReminders.js and are invoked from routes/jam3ya.js
 
 // =============================================================================
@@ -382,10 +620,11 @@ app.get('/', async (req, res) => {
                 WHERE p.status = 'available' AND p.admin_hidden = 0 
                 ORDER BY p.created_at DESC`
             );
+            const safeProducts = products.map(sanitizeProductForView);
             const [categories] = await pool.execute("SELECT * FROM categories ORDER BY name");
             return res.render('index', {
                 title: 'دكان الحجور - السوق العام',
-                products,
+                products: safeProducts,
                 categories,
                 selectedCategory: 'all',
                 req: req
@@ -410,11 +649,12 @@ app.get('/', async (req, res) => {
         query += ' ORDER BY p.created_at DESC';
 
         const [products] = await pool.execute(query, params);
+        const safeProducts = products.map(sanitizeProductForView);
         const [categories] = await pool.execute("SELECT * FROM categories WHERE id IN (SELECT DISTINCT category_id FROM products WHERE user_id = ?)", [mainUserId]);
         
         res.render('index', {
             title: `دكان ${mainUserRows[0].name}`, // عنوان الصفحة يصبح اسم الدكان
-            products,
+            products: safeProducts,
             categories,
             selectedCategory: categoryId || 'all',
             req: req
@@ -1080,7 +1320,10 @@ app.post('/jam3ya/reminders/send', requireJam3yaAdmin, async (req, res) => {
 
 */
 
-app.get('/login', (req, res) => res.render('login', { title: 'تسجيل الدخول', error: null }));
+app.get('/login', (req, res) => {
+    const success = req.query.reset === '1' ? 'تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن.' : null;
+    res.render('login', { title: 'تسجيل الدخول', error: null, success });
+});
 app.get('/register', (req, res) => res.render('register', { title: 'إنشاء حساب جديد', error: null }));
 
 app.post('/register', async (req, res) => {
@@ -1117,8 +1360,26 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
     try {
         const { phone, password } = req.body;
-        const [rows] = await pool.execute('SELECT * FROM users WHERE phone = ?', [phone]);
-        if (rows.length === 0) return res.render('login', { title: 'تسجيل الدخول', error: 'رقم الهاتف أو كلمة المرور غير صحيحة' });
+        const identifier = (phone || '').trim();
+        const digits = identifier.replace(/\D/g, '');
+
+        const phoneCandidates = Array.from(new Set([
+            identifier,
+            digits,
+            digits.length === 8 ? `+968${digits}` : null,
+            digits.length === 8 ? `968${digits}` : null,
+            digits.startsWith('968') && digits.length >= 11 ? digits.slice(-8) : null,
+            digits.startsWith('968') && digits.length >= 11 ? `+${digits}` : null
+        ].filter(Boolean)));
+
+        const placeholders = phoneCandidates.map(() => '?').join(', ');
+        const loginSql = phoneCandidates.length
+            ? `SELECT * FROM users WHERE phone IN (${placeholders}) OR email = ? LIMIT 1`
+            : 'SELECT * FROM users WHERE email = ? LIMIT 1';
+        const params = phoneCandidates.length ? [...phoneCandidates, identifier] : [identifier];
+
+        const [rows] = await pool.execute(loginSql, params);
+        if (rows.length === 0) return res.render('login', { title: 'تسجيل الدخول', error: 'رقم الهاتف أو كلمة المرور غير صحيحة', success: null });
 
         const user = rows[0];
 
@@ -1135,7 +1396,7 @@ app.post('/login', async (req, res) => {
         // ======== نهاية التحقق من الإيقاف ========
 
         const match = await bcrypt.compare(password, user.password);
-        if (!match) return res.render('login', { title: 'تسجيل الدخول', error: 'رقم الهاتف أو كلمة المرور غير صحيحة' });
+        if (!match) return res.render('login', { title: 'تسجيل الدخول', error: 'رقم الهاتف أو كلمة المرور غير صحيحة', success: null });
 
        req.session.user = { id: user.id, name: user.name, is_admin: user.is_admin === 1, avatar: user.avatar };
 
@@ -1145,7 +1406,7 @@ app.post('/login', async (req, res) => {
         res.redirect('/');
     } catch (error) {
         console.error("Login Error:", error);
-        res.render('login', { title: 'تسجيل الدخول', error: 'حدث خطأ في الخادم' });
+        res.render('login', { title: 'تسجيل الدخول', error: 'حدث خطأ في الخادم', success: null });
     }
 });
 // مسار عرض صفحة إدارة المستخدمين
@@ -1161,6 +1422,614 @@ app.get('/admin/manage-users', requireAdmin, async (req, res) => {
     } catch (error) {
         console.error("Manage Users Page Error:", error);
         res.redirect('/admin'); // العودة لصفحة المدير الرئيسية في حالة الخطأ
+    }
+});
+
+// =============================================================================
+// Application Activation (Public + Admin)
+// =============================================================================
+app.get('/app-activation', (req, res) => {
+    res.render('app-activate', {
+        title: 'تفعيل التطبيقات',
+        formData: { app_name: '', phone: '', activation_code: '', device_name: '', device_id: '' },
+        result: null,
+        error: null
+    });
+});
+
+app.post('/app-activation', async (req, res) => {
+    const formData = {
+        app_name: (req.body.app_name || '').trim(),
+        phone: (req.body.phone || '').trim(),
+        activation_code: (req.body.activation_code || '').trim(),
+        device_name: (req.body.device_name || '').trim(),
+        device_id: (req.body.device_id || '').trim()
+    };
+
+    if (!formData.app_name || !formData.phone || !formData.activation_code) {
+        return res.render('app-activate', {
+            title: 'تفعيل التطبيقات',
+            formData,
+            result: null,
+            error: 'يرجى إدخال اسم التطبيق ورقم الهاتف وكود التفعيل.'
+        });
+    }
+
+    try {
+        const [rows] = await pool.execute(
+            `SELECT * FROM app_activations
+             WHERE app_name = ? AND phone = ? AND activation_code = ?
+             LIMIT 1`,
+            [formData.app_name, formData.phone, formData.activation_code]
+        );
+
+        if (!rows.length) {
+            return res.render('app-activate', {
+                title: 'تفعيل التطبيقات',
+                formData,
+                result: null,
+                error: 'بيانات التفعيل غير صحيحة.'
+            });
+        }
+
+        const activation = rows[0];
+        if ((activation.status || '').toLowerCase() !== 'active') {
+            return res.render('app-activate', {
+                title: 'تفعيل التطبيقات',
+                formData,
+                result: null,
+                error: 'هذا الكود موقوف حاليًا. يرجى التواصل مع الإدارة.'
+            });
+        }
+
+        if (activation.expiry_date && new Date(activation.expiry_date) < new Date()) {
+            return res.render('app-activate', {
+                title: 'تفعيل التطبيقات',
+                formData,
+                result: null,
+                error: 'انتهت صلاحية كود التفعيل. يرجى التجديد.'
+            });
+        }
+
+        // Device lock policy: one activation code for one device.
+        if (activation.device_id && formData.device_id && activation.device_id !== formData.device_id) {
+            return res.render('app-activate', {
+                title: 'تفعيل التطبيقات',
+                formData,
+                result: null,
+                error: 'الكود مرتبط بجهاز آخر. تواصل مع الإدارة لإعادة التفعيل.'
+            });
+        }
+
+        const now = formatSqlDateTime();
+        const nextDeviceId = activation.device_id || formData.device_id || null;
+        const nextDeviceName = formData.device_name || activation.device_name || null;
+        const nextActivationDate = activation.activation_date || now;
+
+        await pool.execute(
+            `UPDATE app_activations
+             SET is_activated = 1,
+                 activation_date = ?,
+                 last_login = ?,
+                 device_id = ?,
+                 device_name = ?
+             WHERE id = ?`,
+            [nextActivationDate, now, nextDeviceId, nextDeviceName, activation.id]
+        );
+
+        res.render('app-activate', {
+            title: 'تفعيل التطبيقات',
+            formData,
+            result: {
+                success: true,
+                message: 'تم التفعيل بنجاح. يمكنك الآن استخدام التطبيق.'
+            },
+            error: null
+        });
+    } catch (error) {
+        console.error('App Activation Error:', error);
+        res.render('app-activate', {
+            title: 'تفعيل التطبيقات',
+            formData,
+            result: null,
+            error: 'حدث خطأ في الخادم أثناء التحقق من الكود.'
+        });
+    }
+});
+
+// JSON API for Android apps
+app.post('/api/apps/activate', async (req, res) => {
+    const payload = {
+        app_name: (req.body.app_name || '').trim(),
+        phone: (req.body.phone || '').trim(),
+        activation_code: (req.body.activation_code || '').trim(),
+        device_name: (req.body.device_name || '').trim(),
+        device_id: (req.body.device_id || '').trim()
+    };
+
+    if (!payload.phone || !payload.activation_code) {
+        return res.status(400).json({ success: false, message: 'phone و activation_code مطلوبان.' });
+    }
+
+    try {
+        const activation = await fetchActivationRow({
+            appName: payload.app_name,
+            phone: payload.phone,
+            activationCode: payload.activation_code
+        });
+
+        if (!activation) return res.status(404).json({ success: false, message: 'بيانات التفعيل غير صحيحة.' });
+        if ((activation.status || '').toLowerCase() !== 'active') {
+            return res.status(403).json({ success: false, message: 'هذا الكود موقوف حاليًا.' });
+        }
+        if (activation.expiry_date && new Date(activation.expiry_date) < new Date()) {
+            return res.status(403).json({ success: false, message: 'انتهت صلاحية كود التفعيل.' });
+        }
+
+        if (activation.device_id && payload.device_id && activation.device_id !== payload.device_id) {
+            return res.status(409).json({ success: false, message: 'الكود مرتبط بجهاز آخر.' });
+        }
+
+        const now = formatSqlDateTime();
+        const nextDeviceId = activation.device_id || payload.device_id || null;
+        const nextDeviceName = payload.device_name || activation.device_name || null;
+        const nextActivationDate = activation.activation_date || now;
+
+        await pool.execute(
+            `UPDATE app_activations
+             SET is_activated = 1,
+                 activation_date = ?,
+                 last_login = ?,
+                 device_id = ?,
+                 device_name = ?
+             WHERE id = ?`,
+            [nextActivationDate, now, nextDeviceId, nextDeviceName, activation.id]
+        );
+
+        const updated = { ...activation, is_activated: 1, activation_date: nextActivationDate, last_login: now, device_id: nextDeviceId, device_name: nextDeviceName };
+        return res.json({ success: true, message: 'تم التفعيل بنجاح.', data: activationPayload(updated, nextDeviceId) });
+    } catch (error) {
+        console.error('API Activate Error:', error);
+        return res.status(500).json({ success: false, message: 'خطأ في الخادم.' });
+    }
+});
+
+// API used by mobile app on first launch to request activation code.
+app.post('/api/apps/request-activation', async (req, res) => {
+    const rawBody = req.body || {};
+
+    // Accept common Android/client naming variants to avoid silent mismatches.
+    const incomingAppName = rawBody.app_name || rawBody.appName || rawBody.package_name || rawBody.packageName;
+    const incomingPhone = rawBody.phone || rawBody.phone_number || rawBody.phoneNumber;
+    const incomingDeviceName = rawBody.device_name || rawBody.deviceName || rawBody.model;
+    const incomingDeviceId = rawBody.device_id || rawBody.deviceId || rawBody.installation_id || rawBody.installationId;
+
+    const fallbackDeviceId = crypto
+        .createHash('sha1')
+        .update(`${req.ip || ''}|${req.get('user-agent') || ''}`)
+        .digest('hex')
+        .slice(0, 24);
+
+    const payload = {
+        app_name: String(incomingAppName || '').trim(),
+        phone: String(incomingPhone || '').trim(),
+        device_name: String(incomingDeviceName || '').trim(),
+        device_id: String(incomingDeviceId || '').trim() || fallbackDeviceId
+    };
+
+    if (!payload.app_name) {
+        return res.status(400).json({ success: false, message: 'app_name مطلوب.' });
+    }
+
+    if (!payload.phone && !payload.device_id) {
+        return res.status(400).json({ success: false, message: 'أرسل phone أو device_id على الأقل.' });
+    }
+
+    try {
+        const existing = await fetchActivationRequestRow({
+            appName: payload.app_name,
+            phone: payload.phone,
+            deviceId: payload.device_id
+        });
+
+        if (existing) {
+            const nextDeviceId = existing.device_id || payload.device_id || null;
+            const nextDeviceName = payload.device_name || existing.device_name || null;
+
+            if (nextDeviceId !== existing.device_id || nextDeviceName !== existing.device_name) {
+                await pool.execute(
+                    `UPDATE app_activations
+                     SET device_id = ?, device_name = ?
+                     WHERE id = ?`,
+                    [nextDeviceId, nextDeviceName, existing.id]
+                );
+            }
+
+            const currentStatus = String(existing.status || 'pending').toLowerCase();
+            const responseMessage =
+                currentStatus === 'active'
+                    ? 'الكود مفعل بالفعل.'
+                    : currentStatus === 'suspended'
+                        ? 'هذا الكود موقوف حاليًا. راجع الإدارة.'
+                        : 'تم استلام طلبك. بانتظار موافقة المدير على التفعيل.';
+
+            return res.json({
+                success: true,
+                message: responseMessage,
+                data: {
+                    id: existing.id,
+                    app_name: existing.app_name,
+                    phone: existing.phone || null,
+                    activation_code: existing.activation_code,
+                    status: existing.status || 'pending',
+                    is_activated: Number(existing.is_activated) === 1
+                }
+            });
+        }
+
+        let insertResult = null;
+        let newCode = null;
+        for (let i = 0; i < 8; i += 1) {
+            const candidateCode = generateActivationCode();
+            try {
+                [insertResult] = await pool.execute(
+                    `INSERT INTO app_activations
+                        (app_name, phone, activation_code, status, is_activated, device_id, device_name, notes)
+                     VALUES (?, ?, ?, 'pending', 0, ?, ?, ?)`,
+                    [
+                        payload.app_name,
+                        payload.phone || null,
+                        candidateCode,
+                        payload.device_id || null,
+                        payload.device_name || null,
+                        'Auto-created from first app launch'
+                    ]
+                );
+                newCode = candidateCode;
+                break;
+            } catch (e) {
+                const msg = (e && e.message ? e.message : '').toLowerCase();
+                const duplicateCode =
+                    e.code === 'ER_DUP_ENTRY' ||
+                    msg.includes('duplicate') ||
+                    msg.includes('unique constraint');
+                if (!duplicateCode) throw e;
+            }
+        }
+
+        if (!insertResult || !newCode) {
+            return res.status(500).json({ success: false, message: 'تعذر إنشاء كود تفعيل جديد. حاول مرة أخرى.' });
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: 'تم إنشاء كود التفعيل بنجاح. بانتظار موافقة المدير على التفعيل.',
+            data: {
+                id: insertResult.insertId,
+                app_name: payload.app_name,
+                phone: payload.phone || null,
+                activation_code: newCode,
+                status: 'pending',
+                is_activated: false
+            }
+        });
+    } catch (error) {
+        console.error('API Request Activation Error:', error);
+        const errorCode = error && error.code ? String(error.code) : null;
+        const errorMessage = (error && error.message ? String(error.message) : '').toLowerCase();
+
+        if (errorCode === 'ER_NO_SUCH_TABLE' || errorMessage.includes('no such table')) {
+            return res.status(500).json({ success: false, message: 'جدول التفعيل غير موجود في قاعدة البيانات.' });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: 'خطأ في الخادم.',
+            details: errorCode || undefined
+        });
+    }
+});
+
+app.post('/api/apps/validate', async (req, res) => {
+    const payload = {
+        app_name: (req.body.app_name || '').trim(),
+        phone: (req.body.phone || '').trim(),
+        activation_code: (req.body.activation_code || '').trim(),
+        device_id: (req.body.device_id || '').trim(),
+        license_token: (req.body.license_token || '').trim()
+    };
+
+    if (!payload.phone || !payload.activation_code) {
+        return res.status(400).json({ success: false, message: 'phone و activation_code مطلوبان.' });
+    }
+
+    try {
+        const activation = await fetchActivationRow({
+            appName: payload.app_name,
+            phone: payload.phone,
+            activationCode: payload.activation_code
+        });
+
+        if (!activation) return res.status(404).json({ success: false, message: 'بيانات التفعيل غير صحيحة.' });
+        if ((activation.status || '').toLowerCase() !== 'active') {
+            return res.status(403).json({ success: false, message: 'الاشتراك غير نشط.' });
+        }
+        if (activation.expiry_date && new Date(activation.expiry_date) < new Date()) {
+            return res.status(403).json({ success: false, message: 'انتهت صلاحية الاشتراك.' });
+        }
+        if (activation.device_id && payload.device_id && activation.device_id !== payload.device_id) {
+            return res.status(409).json({ success: false, message: 'هذا الترخيص مرتبط بجهاز آخر.' });
+        }
+
+        const expectedToken = buildLicenseToken({
+            appName: activation.app_name,
+            phone: activation.phone,
+            deviceId: payload.device_id || activation.device_id || '',
+            activationCode: activation.activation_code
+        });
+        if (payload.license_token && payload.license_token !== expectedToken) {
+            return res.status(401).json({ success: false, message: 'رمز الترخيص غير صالح.' });
+        }
+
+        await pool.execute('UPDATE app_activations SET last_login = ? WHERE id = ?', [formatSqlDateTime(), activation.id]);
+        return res.json({ success: true, message: 'الترخيص صالح.', data: activationPayload(activation, payload.device_id) });
+    } catch (error) {
+        console.error('API Validate Error:', error);
+        return res.status(500).json({ success: false, message: 'خطأ في الخادم.' });
+    }
+});
+
+app.post('/api/apps/heartbeat', async (req, res) => {
+    const payload = {
+        app_name: (req.body.app_name || '').trim(),
+        phone: (req.body.phone || '').trim(),
+        activation_code: (req.body.activation_code || '').trim(),
+        device_id: (req.body.device_id || '').trim(),
+        license_token: (req.body.license_token || '').trim()
+    };
+
+    if (!payload.phone || !payload.activation_code) {
+        return res.status(400).json({ success: false, message: 'phone و activation_code مطلوبان.' });
+    }
+
+    try {
+        const activation = await fetchActivationRow({
+            appName: payload.app_name,
+            phone: payload.phone,
+            activationCode: payload.activation_code
+        });
+        if (!activation) return res.status(404).json({ success: false, message: 'بيانات التفعيل غير صحيحة.' });
+        if ((activation.status || '').toLowerCase() !== 'active') return res.status(403).json({ success: false, message: 'الترخيص غير نشط.' });
+        if (activation.expiry_date && new Date(activation.expiry_date) < new Date()) return res.status(403).json({ success: false, message: 'انتهت الصلاحية.' });
+        if (activation.device_id && payload.device_id && activation.device_id !== payload.device_id) return res.status(409).json({ success: false, message: 'الجهاز غير مطابق.' });
+
+        const expectedToken = buildLicenseToken({
+            appName: activation.app_name,
+            phone: activation.phone,
+            deviceId: payload.device_id || activation.device_id || '',
+            activationCode: activation.activation_code
+        });
+        if (payload.license_token && payload.license_token !== expectedToken) {
+            return res.status(401).json({ success: false, message: 'رمز الترخيص غير صالح.' });
+        }
+
+        await pool.execute('UPDATE app_activations SET last_login = ? WHERE id = ?', [formatSqlDateTime(), activation.id]);
+        return res.json({ success: true, message: 'heartbeat received', server_time: formatSqlDateTime() });
+    } catch (error) {
+        console.error('API Heartbeat Error:', error);
+        return res.status(500).json({ success: false, message: 'خطأ في الخادم.' });
+    }
+});
+
+app.get('/admin/app-activations', requireAdmin, async (req, res) => {
+    try {
+        const [apps] = await pool.execute(
+            `SELECT * FROM app_activations ORDER BY register_date DESC, id DESC LIMIT 500`
+        );
+        const [appNamesRows] = await pool.execute(
+            `SELECT DISTINCT TRIM(app_name) AS app_name
+             FROM app_activations
+             WHERE app_name IS NOT NULL AND TRIM(app_name) <> ''
+             ORDER BY app_name ASC`
+        );
+        res.render('app-activations', {
+            title: 'إدارة تفعيل التطبيقات',
+            apps,
+            appNames: appNamesRows.map((row) => row.app_name),
+            error: null,
+            success: null,
+            formData: { app_name: '', phone: '', activation_code: '', expiry_date: '', notes: '' }
+        });
+    } catch (error) {
+        console.error('App Activations Page Error:', error);
+        res.redirect('/admin');
+    }
+});
+
+app.post('/admin/app-activations', requireAdmin, async (req, res) => {
+    const formData = {
+        app_name: (req.body.app_name || '').trim(),
+        phone: (req.body.phone || '').trim(),
+        activation_code: (req.body.activation_code || '').trim() || generateActivationCode(),
+        expiry_date: (req.body.expiry_date || '').trim(),
+        notes: (req.body.notes || '').trim()
+    };
+
+    if (!formData.app_name || !formData.phone) {
+        const [apps] = await pool.execute(`SELECT * FROM app_activations ORDER BY register_date DESC, id DESC LIMIT 500`);
+        const [appNamesRows] = await pool.execute(
+            `SELECT DISTINCT TRIM(app_name) AS app_name
+             FROM app_activations
+             WHERE app_name IS NOT NULL AND TRIM(app_name) <> ''
+             ORDER BY app_name ASC`
+        );
+        return res.render('app-activations', {
+            title: 'إدارة تفعيل التطبيقات',
+            apps,
+            appNames: appNamesRows.map((row) => row.app_name),
+            error: 'اسم التطبيق ورقم الهاتف مطلوبان.',
+            success: null,
+            formData
+        });
+    }
+
+    try {
+        await pool.execute(
+            `INSERT INTO app_activations
+                (app_name, phone, activation_code, expiry_date, status, notes)
+             VALUES (?, ?, ?, ?, 'active', ?)`,
+            [formData.app_name, formData.phone, formData.activation_code, formData.expiry_date || null, formData.notes || null]
+        );
+        res.redirect('/admin/app-activations');
+    } catch (error) {
+        console.error('Create App Activation Error:', error);
+        const [apps] = await pool.execute(`SELECT * FROM app_activations ORDER BY register_date DESC, id DESC LIMIT 500`);
+        const [appNamesRows] = await pool.execute(
+            `SELECT DISTINCT TRIM(app_name) AS app_name
+             FROM app_activations
+             WHERE app_name IS NOT NULL AND TRIM(app_name) <> ''
+             ORDER BY app_name ASC`
+        );
+        res.render('app-activations', {
+            title: 'إدارة تفعيل التطبيقات',
+            apps,
+            appNames: appNamesRows.map((row) => row.app_name),
+            error: 'تعذر إنشاء كود التفعيل. قد يكون الكود مكررًا أو البيانات غير صحيحة.',
+            success: null,
+            formData
+        });
+    }
+});
+
+app.post('/admin/app-activations/:id/toggle-status', requireAdmin, async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const [rows] = await pool.execute('SELECT status FROM app_activations WHERE id = ? LIMIT 1', [id]);
+        if (!rows.length) return res.status(404).json({ success: false, message: 'السجل غير موجود.' });
+
+        const current = (rows[0].status || 'active').toLowerCase();
+        const next = current === 'active' ? 'suspended' : 'active';
+        await pool.execute('UPDATE app_activations SET status = ? WHERE id = ?', [next, id]);
+        res.json({ success: true, status: next });
+    } catch (error) {
+        console.error('Toggle Activation Status Error:', error);
+        res.status(500).json({ success: false, message: 'خطأ في تحديث الحالة.' });
+    }
+});
+
+app.post('/admin/app-activations/:id/reset-device', requireAdmin, async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        await pool.execute(
+            `UPDATE app_activations
+             SET device_id = NULL,
+                 device_name = NULL,
+                 is_activated = 0,
+                 activation_date = NULL
+             WHERE id = ?`,
+            [id]
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Reset Activation Device Error:', error);
+        res.status(500).json({ success: false, message: 'خطأ في إعادة ربط الجهاز.' });
+    }
+});
+
+app.post('/admin/app-activations/:id/set-phone', requireAdmin, async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const phone = String(req.body.phone || '').trim();
+
+        if (!id) return res.status(400).json({ success: false, message: 'معرف السجل غير صالح.' });
+        if (!phone) return res.status(400).json({ success: false, message: 'رقم الهاتف مطلوب.' });
+
+        const [rows] = await pool.execute('SELECT id FROM app_activations WHERE id = ? LIMIT 1', [id]);
+        if (!rows.length) return res.status(404).json({ success: false, message: 'السجل غير موجود.' });
+
+        await pool.execute('UPDATE app_activations SET phone = ? WHERE id = ?', [phone, id]);
+        return res.json({ success: true, phone });
+    } catch (error) {
+        console.error('Set Activation Phone Error:', error);
+        return res.status(500).json({ success: false, message: 'خطأ في تحديث رقم الهاتف.' });
+    }
+});
+
+app.post('/admin/app-activations/:id/update', requireAdmin, async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        if (!id) return res.status(400).json({ success: false, message: 'معرف السجل غير صالح.' });
+
+        const appName = String(req.body.app_name || '').trim();
+        const phone = String(req.body.phone || '').trim();
+        const activationCode = String(req.body.activation_code || '').trim().toUpperCase();
+        const statusRaw = String(req.body.status || '').trim().toLowerCase();
+        const expiryDateRaw = String(req.body.expiry_date || '').trim();
+        const notesRaw = String(req.body.notes || '').trim();
+
+        if (!appName) return res.status(400).json({ success: false, message: 'اسم التطبيق مطلوب.' });
+        if (!activationCode) return res.status(400).json({ success: false, message: 'كود التفعيل مطلوب.' });
+
+        const allowedStatus = new Set(['active', 'pending', 'suspended']);
+        const status = allowedStatus.has(statusRaw) ? statusRaw : 'pending';
+
+        const [rows] = await pool.execute('SELECT id FROM app_activations WHERE id = ? LIMIT 1', [id]);
+        if (!rows.length) return res.status(404).json({ success: false, message: 'السجل غير موجود.' });
+
+        try {
+            await pool.execute(
+                `UPDATE app_activations
+                 SET app_name = ?,
+                     phone = ?,
+                     activation_code = ?,
+                     status = ?,
+                     expiry_date = ?,
+                     notes = ?
+                 WHERE id = ?`,
+                [
+                    appName,
+                    phone || null,
+                    activationCode,
+                    status,
+                    expiryDateRaw || null,
+                    notesRaw || null,
+                    id
+                ]
+            );
+        } catch (e) {
+            const msg = (e && e.message ? e.message : '').toLowerCase();
+            const duplicateCode =
+                e.code === 'ER_DUP_ENTRY' ||
+                msg.includes('duplicate') ||
+                msg.includes('unique constraint');
+
+            if (duplicateCode) {
+                return res.status(409).json({ success: false, message: 'كود التفعيل مستخدم مسبقًا.' });
+            }
+            throw e;
+        }
+
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Update Activation Record Error:', error);
+        return res.status(500).json({ success: false, message: 'خطأ في تعديل السجل.' });
+    }
+});
+
+app.post('/admin/app-activations/:id/delete', requireAdmin, async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        if (!id) return res.status(400).json({ success: false, message: 'معرف السجل غير صالح.' });
+
+        const [result] = await pool.execute('DELETE FROM app_activations WHERE id = ?', [id]);
+        if (!result || Number(result.affectedRows) === 0) {
+            return res.status(404).json({ success: false, message: 'السجل غير موجود.' });
+        }
+
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Delete Activation Record Error:', error);
+        return res.status(500).json({ success: false, message: 'خطأ في حذف السجل.' });
     }
 });
 // =============================================================================
@@ -1215,18 +2084,23 @@ app.get('/add-product', requireAuth, async (req, res) => {
     res.render('add-product', { title: 'إضافة منتج جديد', categories, error: null, success: null });
 });
 
-app.post('/add-product', requireAuth, upload.single('image'), async (req, res) => {
+app.post('/add-product', requireAuth, uploadProductFiles, async (req, res) => {
     const [categories] = await pool.execute("SELECT * FROM categories ORDER BY name");
     
     try {
+        await ensureProductAppColumns();
         const title = req.body.title || null;
         const price = req.body.price || null;
         const userCategoryId = req.body.category_id || null;
         const product_condition = req.body.product_condition || 'used'; // إضافة حالة المنتج
         const description = req.body.description || null;
-            const youtube_link = req.body.youtube_link || null; // <-- أضف السطر هنا
+        const youtube_link = req.body.youtube_link || null;
+        const product_type = String(req.body.product_type || 'physical').trim().toLowerCase() === 'app' ? 'app' : 'physical';
 
-const compressedImageName = req.file ? await compressImage(req.file.buffer) : null;
+        const imageFile = req.files && req.files.image ? req.files.image[0] : null;
+        const appFile = req.files && req.files.app_file ? req.files.app_file[0] : null;
+        const compressedImageName = imageFile ? await compressImage(imageFile.buffer) : null;
+        const appFilePath = appFile ? await saveUploadedAppFile(appFile) : null;
 
         if (!title || !price || !userCategoryId) {
             return res.render('add-product', {
@@ -1236,10 +2110,19 @@ const compressedImageName = req.file ? await compressImage(req.file.buffer) : nu
                 success: null
             });
         }
+
+        if (product_type === 'app' && !appFilePath) {
+            return res.render('add-product', {
+                title: 'إضافة منتج جديد',
+                categories: categories,
+                error: 'يرجى رفع ملف التطبيق عند اختيار نوع المنتج تطبيق.',
+                success: null
+            });
+        }
         
         const [insertResult] = await pool.execute(
-            'INSERT INTO products (user_id, title, price, product_condition, category_id, description, image_path,youtube_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [req.session.user.id, title, price, product_condition, userCategoryId, description, compressedImageName,youtube_link]
+            'INSERT INTO products (user_id, title, price, product_condition, category_id, description, image_path, youtube_link, product_type, app_file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [req.session.user.id, title, price, product_condition, userCategoryId, description, compressedImageName, youtube_link, product_type, appFilePath]
         );
         const newProductId = insertResult.insertId;
 
@@ -1250,8 +2133,8 @@ const compressedImageName = req.file ? await compressImage(req.file.buffer) : nu
             success: 'تمت إضافة منتجك بنجاح! يعمل الذكاء الاصطناعي الآن على تحسين التصنيف...'
         });
 
-        if (req.file) {
-            getAIsuggestedCategory(title, description, req.file.buffer, req.file.mimetype)
+        if (imageFile) {
+            getAIsuggestedCategory(title, description, imageFile.buffer, imageFile.mimetype)
                 .then(async (aiResult) => {
                     if (aiResult && aiResult.categoryName) {
                         const [categoryRows] = await pool.execute('SELECT id FROM categories WHERE name = ?', [aiResult.categoryName]);
@@ -1299,6 +2182,7 @@ app.get('/add-product', requireAuth, async (req, res) => {
 // =============================================================================
 app.get('/edit-product/:id', requireAuth, async (req, res) => {
     try {
+        await ensureProductAppColumns();
         const { id } = req.params;
         const user = req.session.user;
 
@@ -1343,24 +2227,29 @@ app.get('/edit-product/:id', requireAuth, async (req, res) => {
         res.redirect('/my-products'); // العودة لصفحة المنتجات في حالة حدوث خطأ
     }
 });
-app.post('/edit-product/:id', requireAuth, upload.single('image'), async (req, res) => {
+app.post('/edit-product/:id', requireAuth, uploadProductFiles, async (req, res) => {
     const productId = req.params.id;
     try {
+        await ensureProductAppColumns();
         // قراءة البيانات من النموذج بأمان
         const { name: title, price, product_condition, category_id, description, youtube_link } = req.body;
+        const product_type = String(req.body.product_type || 'physical').trim().toLowerCase() === 'app' ? 'app' : 'physical';
+        const imageFile = req.files && req.files.image ? req.files.image[0] : null;
+        const appFile = req.files && req.files.app_file ? req.files.app_file[0] : null;
 
         // التحقق من وجود المنتج وأنه يخص المستخدم
-        const [productRows] = await pool.execute('SELECT image_path FROM products WHERE id = ? AND user_id = ?', [productId, req.session.user.id]);
+        const [productRows] = await pool.execute('SELECT image_path, app_file_path FROM products WHERE id = ? AND user_id = ?', [productId, req.session.user.id]);
         if (productRows.length === 0) {
             return res.redirect('/my-products');
         }
         
         let image_path = productRows[0].image_path; // المسار القديم للصورة
+        let app_file_path = productRows[0].app_file_path || null;
 
         // السيناريو المطلوب: إذا تم رفع صورة جديدة، احذف القديمة
-        if (req.file) {
+        if (imageFile) {
             // ضغط الصورة الجديدة
-const newImageName = await compressImage(req.file.buffer);
+const newImageName = await compressImage(imageFile.buffer);
             
             if (newImageName) {
                 // إذا كانت هناك صورة قديمة، قم بحذفها الآن
@@ -1372,10 +2261,29 @@ const newImageName = await compressImage(req.file.buffer);
             }
         }
 
+        if (appFile) {
+            const newAppFileName = await saveUploadedAppFile(appFile);
+            if (app_file_path) {
+                await fs.unlink(path.join(__dirname, 'uploads', app_file_path)).catch(() => {});
+            }
+            app_file_path = newAppFileName;
+        }
+
+        if (product_type !== 'app') {
+            if (app_file_path) {
+                await fs.unlink(path.join(__dirname, 'uploads', app_file_path)).catch(() => {});
+            }
+            app_file_path = null;
+        }
+
+        if (product_type === 'app' && !app_file_path) {
+            return res.redirect(`/edit-product/${productId}?error=true`);
+        }
+
         // تحديث قاعدة البيانات بالمعلومات الجديدة (سواء تم تغيير الصورة أم لا)
         await pool.execute(
-            'UPDATE products SET title = ?, price = ?, product_condition = ?, category_id = ?, description = ?, image_path = ? , youtube_link = ?  WHERE id = ? AND user_id = ?',
-            [title, price, product_condition, category_id, description, image_path,youtube_link, productId, req.session.user.id]
+            'UPDATE products SET title = ?, price = ?, product_condition = ?, category_id = ?, description = ?, image_path = ?, youtube_link = ?, product_type = ?, app_file_path = ? WHERE id = ? AND user_id = ?',
+            [title, price, product_condition, category_id, description, image_path, youtube_link, product_type, app_file_path, productId, req.session.user.id]
         );
         
         // أعد توجيه المستخدم إلى صفحة منتجاتي بعد النجاح
@@ -1390,6 +2298,7 @@ const newImageName = await compressImage(req.file.buffer);
 
 app.get('/my-products', requireAuth, async (req, res) => {
     try {
+        await ensureProductAppColumns();
         const user = req.session.user;
 
         // استعلام أساسي لجلب كل البيانات التي نحتاجها
@@ -1427,6 +2336,38 @@ app.get('/my-products', requireAuth, async (req, res) => {
     } catch (e) {
         console.error("My Products Page Error:", e);
         res.redirect('/');
+    }
+});
+
+app.get('/download-app/:id', async (req, res) => {
+    try {
+        await ensureProductAppColumns();
+        const id = Number(req.params.id);
+        if (!id) return res.status(400).send('Invalid product id');
+
+        const [rows] = await pool.execute(
+            `SELECT id, title, app_file_path, admin_hidden
+             FROM products
+             WHERE id = ?
+             LIMIT 1`,
+            [id]
+        );
+
+        if (!rows.length) return res.status(404).send('App not found');
+
+        const product = rows[0];
+        if (Number(product.admin_hidden) === 1) return res.status(404).send('App not found');
+        if (!product.app_file_path) return res.status(404).send('No app file available');
+
+        const appPath = path.join(__dirname, 'uploads', product.app_file_path);
+        await fs.access(appPath);
+
+        const safeTitle = String(product.title || 'application').replace(/[^a-zA-Z0-9\u0600-\u06FF_-]+/g, '-');
+        const ext = path.extname(product.app_file_path) || '.apk';
+        return res.download(appPath, `${safeTitle}${ext}`);
+    } catch (error) {
+        console.error('Download App Error:', error);
+        return res.status(500).send('Failed to download app');
     }
 });
 
@@ -1671,7 +2612,13 @@ app.get('/forgot-password', (req, res) => {
 app.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
+        await ensureResetPasswordColumns();
         const [userRows] = await pool.execute('SELECT * FROM users WHERE email = ?', [email]);
+
+        if (!transporter) {
+            console.error('Forgot password is unavailable: mail transporter is not configured.');
+            return res.render('forgot-password', { title: 'استعادة كلمة المرور', error: 'خدمة البريد غير مفعلة حاليًا. يرجى المحاولة لاحقًا.', success: null });
+        }
 
         if (userRows.length === 0) {
             // نعرض رسالة نجاح حتى لو لم نجد الإيميل، لمنع كشف المستخدمين المسجلين
@@ -1689,10 +2636,11 @@ app.post('/forgot-password', async (req, res) => {
             [token, expires, user.id]
         );
 
-        const resetLink = `http://${req.headers.host}/reset/${token}`;
+        const baseUrl = (process.env.BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+        const resetLink = `${baseUrl}/reset/${token}`;
 
         const mailOptions = {
-           from: `"دكان الحجور" <${process.env.MAIL_USER}>`,
+              from: `"دكان الحجور" <${resolvedFromEmail}>`,
             to: user.email,
             subject: 'إعادة تعيين كلمة المرور لحسابك في دكان الحجور',
             html: `
@@ -1711,7 +2659,11 @@ app.post('/forgot-password', async (req, res) => {
 
     } catch (error) {
         console.error('Forgot Password Error:', error);
-        res.render('forgot-password', { title: 'استعادة كلمة المرور', error: 'حدث خطأ ما، يرجى المحاولة مرة أخرى.', success: null });
+        const mailError = error && (error.code === 'EAUTH' || error.code === 'ECONNECTION' || error.code === 'ESOCKET' || error.code === 'ETIMEDOUT');
+        const errorMessage = mailError
+            ? 'تعذر إرسال البريد حاليًا. تحقق من إعدادات MAIL_HOST وMAIL_PORT وMAIL_USER وMAIL_PASS.'
+            : 'حدث خطأ ما، يرجى المحاولة مرة أخرى.';
+        res.render('forgot-password', { title: 'استعادة كلمة المرور', error: errorMessage, success: null });
     }
 });
 
@@ -1719,9 +2671,10 @@ app.post('/forgot-password', async (req, res) => {
 app.get('/reset/:token', async (req, res) => {
     try {
         const { token } = req.params;
+        await ensureResetPasswordColumns();
         const [userRows] = await pool.execute(
-            'SELECT * FROM users WHERE reset_password_token = ? AND reset_password_expires > NOW()',
-            [token]
+            'SELECT * FROM users WHERE reset_password_token = ? AND reset_password_expires > ?',
+            [token, new Date()]
         );
 
         if (userRows.length === 0) {
@@ -1741,14 +2694,15 @@ app.post('/reset/:token', async (req, res) => {
     try {
         const { token } = req.params;
         const { password, confirmPassword } = req.body;
+        await ensureResetPasswordColumns();
 
         if (password !== confirmPassword) {
             return res.render('reset-password', { title: 'إعادة تعيين كلمة المرور', token, error: 'كلمات المرور غير متطابقة.' });
         }
 
         const [userRows] = await pool.execute(
-            'SELECT * FROM users WHERE reset_password_token = ? AND reset_password_expires > NOW()',
-            [token]
+            'SELECT * FROM users WHERE reset_password_token = ? AND reset_password_expires > ?',
+            [token, new Date()]
         );
 
         if (userRows.length === 0) {
@@ -1763,8 +2717,16 @@ app.post('/reset/:token', async (req, res) => {
             [hashedPassword, user.id]
         );
 
+        const [verifyRows] = await pool.execute('SELECT password FROM users WHERE id = ? LIMIT 1', [user.id]);
+        const storedHash = verifyRows && verifyRows[0] ? verifyRows[0].password : null;
+        const saveOk = storedHash ? await bcrypt.compare(password, storedHash) : false;
+        if (!saveOk) {
+            console.error('Reset POST Error: password was not saved correctly for user id', user.id);
+            return res.render('reset-password', { title: 'إعادة تعيين كلمة المرور', token, error: 'تعذر حفظ كلمة المرور الجديدة بشكل صحيح. حاول مرة أخرى.' });
+        }
+
         // يمكنك هنا تسجيل دخول المستخدم تلقائياً أو توجيهه لصفحة تسجيل الدخول
-        res.redirect('/login');
+        res.redirect('/login?reset=1');
 
     } catch (error) {
         console.error('Reset POST Error:', error);
@@ -1806,6 +2768,7 @@ app.get('/market', async (req, res) => {
         query += ' ORDER BY p.created_at DESC';
 
         const [products] = await pool.execute(query, params);
+        const safeProducts = products.map(sanitizeProductForView);
         
         // جلب قائمة التصنيفات التي تحتوي على منتجات في السوق فقط
         let categoriesQuery = 'SELECT * FROM categories WHERE id IN (SELECT DISTINCT category_id FROM products WHERE status = "available" AND admin_hidden = 0';
@@ -1820,7 +2783,7 @@ app.get('/market', async (req, res) => {
         // 3. سنقوم بإعادة استخدام نفس صفحة index.ejs لعرض النتائج
      res.render('index', {
     title: 'تصفح السوق',
-    products,
+    products: safeProducts,
     categories,
     selectedCategory: categoryId || 'all',
     req: req,
@@ -1945,6 +2908,100 @@ app.delete('/admin/categories/:id', requireAdmin, async (req, res) => {
     } catch (error) {
         console.error("Delete Category Error:", error);
         res.status(500).json({ success: false, message: 'خطأ في الخادم.' });
+    }
+});
+
+// =============================================================================
+// مسار API لإعادة تصنيف منتج باستخدام DeepSeek يدوياً من لوحة التحكم
+// =============================================================================
+
+// إعادة تصنيف جميع المنتجات بدون تصنيف (category_id = NULL)
+app.post('/admin/reclassify-all', requireAdmin, async (req, res) => {
+    try {
+        const [products] = await pool.execute(
+            'SELECT id, title AS name, description FROM products WHERE category_id IS NULL OR category_id = ""'
+        );
+        
+        let updated = 0;
+        let failed = 0;
+
+        for (const product of products) {
+            try {
+                const aiResult = await getAIsuggestedCategory(product.name, product.description, null, null);
+                if (aiResult && aiResult.categoryName) {
+                    const [categoryRows] = await pool.execute(
+                        'SELECT id FROM categories WHERE name = ?',
+                        [aiResult.categoryName]
+                    );
+                    if (categoryRows.length > 0) {
+                        await pool.execute(
+                            'UPDATE products SET category_id = ? WHERE id = ?',
+                            [categoryRows[0].id, product.id]
+                        );
+                        updated++;
+                    }
+                }
+            } catch (e) {
+                failed++;
+                console.error(`Reclassify failed for product ${product.id}:`, e.message);
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `تم إعادة تصنيع ${updated} منتج بنجاح.`,
+            updated,
+            failed,
+            total: products.length
+        });
+    } catch (error) {
+        console.error("Reclassify All Error:", error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم.' });
+    }
+});
+
+// إعادة تصنيف منتج محدد
+app.post('/admin/reclassify-product/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [products] = await pool.execute(
+            'SELECT id, title AS name, description FROM products WHERE id = ?',
+            [id]
+        );
+
+        if (products.length === 0) {
+            return res.status(404).json({ success: false, message: 'المنتج غير موجود.' });
+        }
+
+        const product = products[0];
+        const aiResult = await getAIsuggestedCategory(product.name, product.description, null, null);
+
+        if (!aiResult || !aiResult.categoryName) {
+            return res.status(500).json({ success: false, message: 'فشل الذكاء الاصطناعي في تصنيف المنتج.' });
+        }
+
+        const [categoryRows] = await pool.execute(
+            'SELECT id FROM categories WHERE name = ?',
+            [aiResult.categoryName]
+        );
+
+        if (categoryRows.length === 0) {
+            return res.status(500).json({ success: false, message: `التصنيف "${aiResult.categoryName}" غير موجود في قاعدة البيانات.` });
+        }
+
+        await pool.execute(
+            'UPDATE products SET category_id = ? WHERE id = ?',
+            [categoryRows[0].id, id]
+        );
+
+        res.json({
+            success: true,
+            message: `تم إعادة تصنيف المنتج إلى "${aiResult.categoryName}" بواسطة DeepSeek AI.`,
+            suggestedCategory: aiResult.categoryName
+        });
+    } catch (error) {
+        console.error("Reclassify Product Error:", error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في الخادم.' });
     }
 });
 

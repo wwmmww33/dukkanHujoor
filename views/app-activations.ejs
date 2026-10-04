@@ -1,0 +1,254 @@
+<main class="main-content">
+    <div class="container">
+        <div class="page-header" style="text-align: center; margin-bottom: 1.5rem;">
+            <h2>📱 إدارة تفعيل التطبيقات</h2>
+            <p style="color: #666;">إدارة أكواد التفعيل الخاصة بتطبيقات الأندرويد.</p>
+        </div>
+
+        <div style="background: var(--bg-surface); border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 22px;">
+            <h3 style="margin-top: 0; margin-bottom: 14px; color: #2c3e50;">إنشاء كود تفعيل جديد</h3>
+
+            <% if (error) { %>
+                <div style="background: #ffe7e7; color: #9f1c1c; border: 1px solid #ffc7c7; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <form method="POST" action="/admin/app-activations" style="display: grid; gap: 12px;">
+                <div style="display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <label>
+                        <div style="margin-bottom: 6px; font-weight: 600;">اسم التطبيق</div>
+                        <input type="text" name="app_name" class="form-input" required value="<%= formData.app_name %>" list="app-names-list" placeholder="مثال: hujoor-shop">
+                        <datalist id="app-names-list">
+                            <% (appNames || []).forEach(name => { %>
+                                <option value="<%= name %>"></option>
+                            <% }) %>
+                        </datalist>
+                    </label>
+                    <label>
+                        <div style="margin-bottom: 6px; font-weight: 600;">رقم الهاتف</div>
+                        <input type="text" name="phone" class="form-input" required value="<%= formData.phone %>" placeholder="05xxxxxxxx">
+                    </label>
+                    <label>
+                        <div style="margin-bottom: 6px; font-weight: 600;">كود التفعيل (اختياري)</div>
+                        <input type="text" name="activation_code" class="form-input" value="<%= formData.activation_code %>" placeholder="يتم توليده تلقائيا إذا تركته فارغا">
+                    </label>
+                    <label>
+                        <div style="margin-bottom: 6px; font-weight: 600;">تاريخ الانتهاء (اختياري)</div>
+                        <input type="datetime-local" name="expiry_date" class="form-input" value="<%= formData.expiry_date %>">
+                    </label>
+                </div>
+
+                <label>
+                    <div style="margin-bottom: 6px; font-weight: 600;">ملاحظات</div>
+                    <input type="text" name="notes" class="form-input" value="<%= formData.notes %>" placeholder="ملاحظات داخلية">
+                </label>
+
+                <button type="submit" class="btn btn-primary" style="padding: 12px; font-size: 16px; width: fit-content;">
+                    إنشاء كود التفعيل
+                </button>
+            </form>
+        </div>
+
+        <div style="background: var(--bg-surface); border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 24px;">
+            <h3 style="margin-top: 0; margin-bottom: 14px; color: #2c3e50;">السجلات الحالية</h3>
+
+            <% if (!apps || !apps.length) { %>
+                <p style="text-align: center; color: #666;">لا توجد سجلات تفعيل حتى الآن.</p>
+            <% } else { %>
+                <div style="overflow-x: auto;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>التطبيق</th>
+                                <th>الهاتف</th>
+                                <th>كود التفعيل</th>
+                                <th>اسم الجهاز</th>
+                                <th>معرف الجهاز</th>
+                                <th>الحالة</th>
+                                <th>الانتهاء</th>
+                                <th>آخر دخول</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% apps.forEach(item => { %>
+                                <tr id="activation-<%= item.id %>">
+                                    <td><%= item.app_name %></td>
+                                    <td><%= item.phone %></td>
+                                    <td style="font-family: monospace;"><%= item.activation_code %></td>
+                                    <td><%= item.device_name || '-' %></td>
+                                    <td style="font-family: monospace;"><%= item.device_id || '-' %></td>
+                                    <td>
+                                        <% if ((item.status || '').toLowerCase() === 'active') { %>
+                                            <span class="badge badge-available">نشط</span>
+                                        <% } else if ((item.status || '').toLowerCase() === 'pending') { %>
+                                            <span class="badge" style="background:#fff3cd;color:#7a5b00;border:1px solid #ffe08a;">بانتظار التفعيل</span>
+                                        <% } else { %>
+                                            <span class="badge badge-hidden">موقوف</span>
+                                        <% } %>
+                                    </td>
+                                    <td><%= item.expiry_date ? new Date(item.expiry_date).toLocaleString('ar-SA-u-ca-gregory', { timeZone: 'Asia/Muscat' }) : '-' %></td>
+                                    <td><%= item.last_login ? new Date(item.last_login).toLocaleString('ar-SA-u-ca-gregory', { timeZone: 'Asia/Muscat' }) : '-' %></td>
+                                    <td>
+                                        <div class="action-buttons" style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                            <button class="btn btn-sm js-set-phone" style="background:#2d7ef7;color:#fff;" data-id="<%= item.id %>" data-phone="<%= item.phone || '' %>">تعديل الهاتف</button>
+                                            <button class="btn btn-sm btn-info js-edit-record" data-id="<%= item.id %>" data-app-name="<%= item.app_name || '' %>" data-phone="<%= item.phone || '' %>" data-code="<%= item.activation_code || '' %>" data-status="<%= item.status || 'pending' %>" data-expiry="<%= item.expiry_date ? new Date(item.expiry_date).toISOString().slice(0, 19).replace('T', ' ') : '' %>">تعديل السجل</button>
+                                            <button class="btn btn-sm btn-danger js-delete-record" data-id="<%= item.id %>">حذف السجل</button>
+                                            <button class="btn btn-sm btn-warning js-toggle-status" data-id="<%= item.id %>">تفعيل/إيقاف</button>
+                                            <button class="btn btn-sm btn-success js-reset-device" data-id="<%= item.id %>">إعادة ربط جهاز</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</main>
+
+<script>
+    async function toggleStatus(id) {
+        if (!confirm('تأكيد تغيير حالة هذا الكود؟')) return;
+        const response = await fetch(`/admin/app-activations/${id}/toggle-status`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert(data.message || 'تعذر تحديث الحالة');
+    }
+
+    async function resetDevice(id) {
+        if (!confirm('سيتم فك ارتباط الجهاز والسماح بإعادة التفعيل. متابعة؟')) return;
+        const response = await fetch(`/admin/app-activations/${id}/reset-device`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert(data.message || 'تعذر تنفيذ العملية');
+    }
+
+    async function setPhone(id, currentPhone) {
+        const phone = prompt('أدخل رقم الهاتف:', currentPhone || '');
+        if (phone === null) return;
+        const nextPhone = phone.trim();
+        if (!nextPhone) {
+            alert('رقم الهاتف مطلوب');
+            return;
+        }
+
+        const response = await fetch(`/admin/app-activations/${id}/set-phone`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: nextPhone })
+        });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert(data.message || 'تعذر تحديث رقم الهاتف');
+    }
+
+    async function editRecord(id, current) {
+        const appName = prompt('اسم التطبيق:', current.appName || '');
+        if (appName === null) return;
+
+        const activationCode = prompt('كود التفعيل:', current.activationCode || '');
+        if (activationCode === null) return;
+
+        const status = prompt('الحالة (active | pending | suspended):', current.status || 'pending');
+        if (status === null) return;
+
+        const phone = prompt('رقم الهاتف (اختياري):', current.phone || '');
+        if (phone === null) return;
+
+        const expiryDate = prompt('تاريخ الانتهاء (اختياري بصيغة YYYY-MM-DD HH:MM:SS):', current.expiry || '');
+        if (expiryDate === null) return;
+
+        const normalizedStatus = String(status || '').trim().toLowerCase();
+        if (!['active', 'pending', 'suspended'].includes(normalizedStatus)) {
+            alert('الحالة غير صالحة. استخدم active أو pending أو suspended.');
+            return;
+        }
+
+        const response = await fetch(`/admin/app-activations/${id}/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                app_name: String(appName || '').trim(),
+                phone: String(phone || '').trim(),
+                activation_code: String(activationCode || '').trim(),
+                status: normalizedStatus,
+                expiry_date: String(expiryDate || '').trim()
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert(data.message || 'تعذر تعديل السجل');
+    }
+
+    async function deleteRecord(id) {
+        if (!confirm('هل تريد حذف هذا السجل نهائيًا؟')) return;
+
+        const response = await fetch(`/admin/app-activations/${id}/delete`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert(data.message || 'تعذر حذف السجل');
+    }
+
+    document.addEventListener('click', function (event) {
+        const setPhoneBtn = event.target.closest('.js-set-phone');
+        if (setPhoneBtn) {
+            const id = Number(setPhoneBtn.getAttribute('data-id'));
+            const phone = setPhoneBtn.getAttribute('data-phone') || '';
+            if (id) setPhone(id, phone);
+            return;
+        }
+
+        const toggleBtn = event.target.closest('.js-toggle-status');
+        if (toggleBtn) {
+            const id = Number(toggleBtn.getAttribute('data-id'));
+            if (id) toggleStatus(id);
+            return;
+        }
+
+        const editBtn = event.target.closest('.js-edit-record');
+        if (editBtn) {
+            const id = Number(editBtn.getAttribute('data-id'));
+            if (id) {
+                editRecord(id, {
+                    appName: editBtn.getAttribute('data-app-name') || '',
+                    phone: editBtn.getAttribute('data-phone') || '',
+                    activationCode: editBtn.getAttribute('data-code') || '',
+                    status: editBtn.getAttribute('data-status') || 'pending',
+                    expiry: editBtn.getAttribute('data-expiry') || ''
+                });
+            }
+            return;
+        }
+
+        const deleteBtn = event.target.closest('.js-delete-record');
+        if (deleteBtn) {
+            const id = Number(deleteBtn.getAttribute('data-id'));
+            if (id) deleteRecord(id);
+            return;
+        }
+
+        const resetBtn = event.target.closest('.js-reset-device');
+        if (resetBtn) {
+            const id = Number(resetBtn.getAttribute('data-id'));
+            if (id) resetDevice(id);
+        }
+    });
+</script>

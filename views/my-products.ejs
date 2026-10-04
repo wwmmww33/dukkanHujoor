@@ -48,6 +48,14 @@
                     <div class="product-info">
                         <h3 class="product-title"><%= product.name %></h3>
                         <p class="product-price"><%= product.price %> ريال</p>
+                        <% if (product.product_type === 'app') { %>
+                            <div style="margin-bottom: 10px;">
+                                <span class="badge badge-available">تطبيق</span>
+                                <% if (product.app_file_path) { %>
+                                    <a href="/download-app/<%= product.id %>" target="_blank" class="btn btn-secondary" style="margin-inline-start: 8px;">⬇️ تحميل الملف</a>
+                                <% } %>
+                            </div>
+                        <% } %>
                                     <% if (product.admin_hidden && !(req.session.user && req.session.user.is_admin)) { %>
             <!-- --- عرض للمستخدم العادي عندما يكون المنتج مخفياً --- -->
             <div class="admin-hidden-notice">

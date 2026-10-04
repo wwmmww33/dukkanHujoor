@@ -1,5 +1,8 @@
 const XLSX = require('xlsx');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 const { createJam3yaReminders } = require('../services/jam3yaReminders');
 
@@ -22,6 +25,117 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
         if (err) console.error('Visitor Log Error:', err.message);
       }
     );
+  };
+
+  // ------------------------------
+  // Auctions: shared helpers
+  // ------------------------------
+  const auctionUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }).single('auction_image');
+
+  const compressAuctionImage = async (fileBuffer) => {
+    if (!fileBuffer) return null;
+    const filename = `auction-${Date.now()}.webp`;
+    const fullPath = path.join(__dirname, '..', 'uploads', filename);
+    try {
+      await sharp(fileBuffer)
+        .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
+        .toFormat('webp', { quality: 80 })
+        .toFile(fullPath);
+      return filename;
+    } catch (err) {
+      console.error('Auction image compression error:', err);
+      return null;
+    }
+  };
+
+  const toSqlDateTime = (value) => {
+    if (!value) return null;
+    const normalized = String(value).trim().replace('T', ' ');
+    return normalized.length === 16 ? `${normalized}:00` : normalized;
+  };
+  const nowSqlDateTime = () => getGulfDateTimeString().replace('T', ' ').slice(0, 19);
+
+  // mysql2 returns DATETIME columns as JS Date objects (built from the raw stored digits via the
+  // local Date constructor), while sqlite3 returns them as plain 'YYYY-MM-DD HH:MM:SS' strings.
+  // Normalize either shape to the same plain string so every downstream comparison/format call
+  // only ever deals with strings.
+  const toSqlDateTimeString = (value) => {
+    if (!value) return '';
+    if (value instanceof Date) {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+    }
+    return String(value);
+  };
+
+  const normalizeAuctionDates = (a) => ({
+    ...a,
+    start_date: toSqlDateTimeString(a.start_date),
+    end_date: toSqlDateTimeString(a.end_date),
+  });
+
+  const formatArabicShortDateTime = (rawValue) => {
+    const sqlStr = toSqlDateTimeString(rawValue);
+    if (!sqlStr) return '';
+    const [datePart, timePart] = sqlStr.split(' ');
+    const dateParts = (datePart || '').split('-');
+    if (dateParts.length !== 3) return sqlStr;
+    const [y, m, d] = dateParts;
+    const timeParts = (timePart || '00:00').split(':');
+    const h = parseInt(timeParts[0], 10) || 0;
+    const min = timeParts[1] || '00';
+    const period = h >= 12 ? 'مساء' : 'صباحا';
+    let h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    const hh = String(h12).padStart(2, '0');
+    return `${d}-${m}-${y}  ${hh}${min} ${period}`;
+  };
+
+  const computeEffectiveStatus = (auction, now) => {
+    const current = now || nowSqlDateTime();
+    if (auction.status === 'published') {
+      if (auction.start_date > current) return 'upcoming';
+      if (auction.end_date < current) return 'ended';
+      return 'active';
+    }
+    return auction.status;
+  };
+
+  const syncEndedAuctions = () =>
+    new Promise((resolve) => {
+      if (!jam3yaDb) return resolve();
+      jam3yaDb.run(
+        "UPDATE auction_items SET status = 'ended' WHERE status = 'published' AND end_date < ?",
+        [nowSqlDateTime()],
+        () => resolve()
+      );
+    });
+
+  const getAuctionPriceInfo = (auctionId, cb) => {
+    jam3yaDb.get(
+      'SELECT COUNT(*) AS bid_count, MAX(amount) AS top_bid FROM auction_bids WHERE auction_id = ?',
+      [auctionId],
+      cb
+    );
+  };
+
+  const findMemberByPasscode = (rawPasscode, cb) => {
+    const passcode = String(rawPasscode || '').trim();
+    if (!passcode) return cb(null, null);
+    jam3yaDb.get(
+      'SELECT * FROM members WHERE passcode = ? AND (is_active = 1 OR is_active IS NULL) LIMIT 1',
+      [passcode],
+      cb
+    );
+  };
+
+  const formatShortDateDMY = (rawDate) => {
+    const str = toSqlDateTimeString(rawDate).trim();
+    const datePart = str.split(/[ T]/)[0];
+    const parts = datePart.split('-');
+    if (parts.length !== 3) return str;
+    const [y, m, d] = parts;
+    return `${d}-${m}-${y}`;
   };
 
   // DB availability middleware
@@ -178,7 +292,49 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
   }
 
   // Routes
-  router.get('/login', (req, res) => res.render('jam3ya-login', { error: null, layout: false, isAdmin: false }));
+  router.get('/login', async (req, res) => {
+    let activeAuctions = [];
+    if (jam3yaDb && !jam3yaDb.initializationError) {
+      try {
+        await syncEndedAuctions();
+        const rows = await new Promise((resolve, reject) =>
+          jam3yaDb.all(
+            "SELECT * FROM auction_items WHERE status IN ('published','ended') ORDER BY end_date ASC",
+            [],
+            (err, result) => (err ? reject(err) : resolve(result || []))
+          )
+        );
+        const now = nowSqlDateTime();
+        const visible = rows
+          .map(normalizeAuctionDates)
+          .map((a) => ({ ...a, effective_status: computeEffectiveStatus(a, now) }))
+          .filter((a) => a.effective_status === 'upcoming' || a.effective_status === 'active');
+
+        activeAuctions = await Promise.all(
+          visible.map(
+            (a) =>
+              new Promise((resolve) => {
+                getAuctionPriceInfo(a.id, (err, priceRow) => {
+                  const currentPrice =
+                    !err && priceRow && priceRow.top_bid != null ? Number(priceRow.top_bid) : Number(a.starting_price);
+                  resolve({
+                    ...a,
+                    current_price: currentPrice,
+                    bid_count: !err && priceRow ? priceRow.bid_count : 0,
+                    start_date_display: formatArabicShortDateTime(a.start_date),
+                    end_date_display: formatArabicShortDateTime(a.end_date),
+                  });
+                });
+              })
+          )
+        );
+      } catch (err) {
+        console.error('Load public auctions error:', err);
+        activeAuctions = [];
+      }
+    }
+    res.render('jam3ya-login', { error: null, layout: false, isAdmin: false, activeAuctions });
+  });
 
   router.post('/login', checkJam3yaDb, (req, res) => {
     const { passcode } = req.body;
@@ -324,11 +480,74 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
 
   // Minimal admin transaction routes (kept here; you can extend the rest similarly)
   router.post('/transactions/add', requireJam3yaAdmin, (req, res) => {
-    const { date, type, subject, member_id, description, details, amount } = req.body;
+    const { date, type, subject, member_id, description, details, amount, obligation_id } = req.body;
     const targetDate = date || getGulfDateString();
     let finalAmount = parseFloat(amount);
     if (type === 'expense') finalAmount = -Math.abs(finalAmount);
     else finalAmount = Math.abs(finalAmount);
+
+    const normalizedObligationId = Number(obligation_id);
+    const hasObligationLink = Number.isInteger(normalizedObligationId) && normalizedObligationId > 0;
+
+    const finalizeWithRedirect = async () => {
+      await updatePublicExcelFile();
+      res.redirect('/jam3ya/dashboard?tab=transactions');
+    };
+
+    const linkTransactionToObligation = (transactionId, done) => {
+      if (!hasObligationLink) return done();
+
+      const paymentAmount = Math.abs(finalAmount);
+      if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) return done();
+
+      const paymentDate = targetDate || getGulfDateString();
+      const createdAt = getGulfDateTimeString();
+
+      const attempts = [
+        {
+          sql: 'INSERT INTO obligation_payments (obligation_id, amount, transaction_id) VALUES (?, ?, ?)',
+          params: [normalizedObligationId, paymentAmount, transactionId],
+        },
+        {
+          sql: 'INSERT INTO obligation_payments (obligation_id, amount, payment_date, transaction_id) VALUES (?, ?, ?, ?)',
+          params: [normalizedObligationId, paymentAmount, paymentDate, transactionId],
+        },
+        {
+          sql: 'INSERT INTO obligation_payments (obligation_id, amount, payment_date) VALUES (?, ?, ?)',
+          params: [normalizedObligationId, paymentAmount, paymentDate],
+        },
+        {
+          sql: 'INSERT INTO obligation_payments (obligation_id, amount, created_at, transaction_id) VALUES (?, ?, ?, ?)',
+          params: [normalizedObligationId, paymentAmount, createdAt, transactionId],
+        },
+        {
+          sql: 'INSERT INTO obligation_payments (obligation_id, amount, created_at) VALUES (?, ?, ?)',
+          params: [normalizedObligationId, paymentAmount, createdAt],
+        },
+        {
+          sql: 'INSERT INTO obligation_payments (obligation_id, amount) VALUES (?, ?)',
+          params: [normalizedObligationId, paymentAmount],
+        },
+      ];
+
+      const tryInsert = (index, lastError) => {
+        if (index >= attempts.length) return done(lastError || new Error('Failed to insert obligation payment'));
+
+        const attempt = attempts[index];
+        jam3yaDb.run(attempt.sql, attempt.params, (err) => {
+          if (!err) return done();
+          console.error('Obligation payment insert attempt failed:', {
+            obligationId: normalizedObligationId,
+            transactionId,
+            sql: attempt.sql,
+            error: err && err.message ? err.message : err,
+          });
+          tryInsert(index + 1, err);
+        });
+      };
+
+      tryInsert(0, null);
+    };
 
     const processTransaction = (itemValue) => {
       jam3yaDb.run(
@@ -336,8 +555,12 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
         [targetDate, subject, itemValue, details, finalAmount],
         async function (err) {
           if (err) return res.status(500).send('Error adding transaction');
-          await updatePublicExcelFile();
-          res.redirect('/jam3ya/dashboard?tab=transactions');
+          const transactionId = this.lastID;
+
+          linkTransactionToObligation(transactionId, async (linkErr) => {
+            if (linkErr) console.error('Link Obligation Payment Error:', linkErr);
+            await finalizeWithRedirect();
+          });
         }
       );
     };
@@ -409,6 +632,35 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
     });
   });
 
+  router.post('/transactions/edit', requireJam3yaAdmin, (req, res) => {
+    const { id, date, type, subject, member_id, description, details, amount } = req.body;
+    const targetDate = date || getGulfDateString();
+    let finalAmount = parseFloat(amount);
+    if (type === 'expense') finalAmount = -Math.abs(finalAmount);
+    else finalAmount = Math.abs(finalAmount);
+
+    const doUpdate = (itemValue) => {
+      jam3yaDb.run(
+        'UPDATE transactions SET date = ?, subject = ?, item = ?, details = ?, amount = ? WHERE id = ?',
+        [targetDate, subject, itemValue, details || '', finalAmount, id],
+        async (err) => {
+          if (err) return res.status(500).send('Error updating transaction');
+          await updatePublicExcelFile();
+          res.redirect('/jam3ya/dashboard?tab=transactions');
+        }
+      );
+    };
+
+    if (member_id) {
+      jam3yaDb.get('SELECT member_code FROM members WHERE id = ?', [member_id], (err, row) => {
+        if (err || !row) return res.status(404).send('Member not found');
+        doUpdate(row.member_code);
+      });
+    } else {
+      doUpdate(description || '');
+    }
+  });
+
   // -----------------------------
   // Admin: dashboard
   // -----------------------------
@@ -450,7 +702,10 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
             seenSubjects.add(subjectName);
             recentSubjects.push(subjectName);
           });
-        const activeSubjects = recentSubjects.slice(0, 4);
+        const activeSubjects = recentSubjects.slice(0, 4).map((name) => {
+          const subj = subjects.find((s) => s.name === name);
+          return { name, type: subj ? (subj.type || 'expense') : 'expense' };
+        });
 
         const mainData = processJam3yaData(transactions, 0);
 
@@ -490,8 +745,10 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
         }
 
         const memberMap = {};
+        const memberIdMap = {};
         (members || []).forEach((m) => {
           memberMap[m.member_code] = m.name;
+          memberIdMap[m.id] = m.name;
         });
 
         const processedTransactions = (transactions || [])
@@ -566,6 +823,54 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
           return true;
         });
 
+        let auctions = [];
+        try {
+          await syncEndedAuctions();
+          const auctionRows = (await dbAll('SELECT * FROM auction_items ORDER BY created_at DESC')).map(normalizeAuctionDates);
+          const now = nowSqlDateTime();
+          auctions = await Promise.all(
+            auctionRows.map(
+              (a) =>
+                new Promise((resolve) => {
+                  getAuctionPriceInfo(a.id, (err, priceRow) => {
+                    const currentPrice =
+                      !err && priceRow && priceRow.top_bid != null ? Number(priceRow.top_bid) : Number(a.starting_price);
+                    resolve({
+                      ...a,
+                      current_price: currentPrice,
+                      bid_count: !err && priceRow ? priceRow.bid_count : 0,
+                      effective_status: computeEffectiveStatus(a, now),
+                      start_date_display: formatArabicShortDateTime(a.start_date),
+                      end_date_display: formatArabicShortDateTime(a.end_date),
+                      winner_name: a.winner_member_id ? (memberIdMap[a.winner_member_id] || null) : null,
+                    });
+                  });
+                })
+            )
+          );
+        } catch (err) {
+          console.error('Load auctions for dashboard error:', err);
+          auctions = [];
+        }
+
+        let recentTransactionsForAuctionLink = [];
+        try {
+          const linkRows = await dbAll(
+            "SELECT id, date, subject, item, details FROM transactions WHERE amount < 0 AND subject NOT LIKE '%فاتور%' AND subject NOT LIKE '%فواتير%' ORDER BY date DESC, id DESC LIMIT 100"
+          );
+          recentTransactionsForAuctionLink = linkRows.map((t) => {
+            const displayItem = memberMap[t.item] || t.item || '';
+            const shortDate = formatShortDateDMY(t.date);
+            const labelParts = [shortDate, t.subject, displayItem].filter(Boolean);
+            if (t.details) labelParts.push(t.details);
+            return { id: t.id, label: labelParts.join(' - '), details: t.details || '' };
+          });
+        } catch (err) {
+          recentTransactionsForAuctionLink = [];
+        }
+
+        const serverNowForView = nowSqlDateTime().slice(0, 16).replace(' ', 'T');
+
         res.render('jam3ya-dashboard', {
           members,
           subjects,
@@ -581,6 +886,9 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
           adminName,
           visitors,
           infoMessages,
+          auctions,
+          recentTransactionsForAuctionLink,
+          serverNowForView,
           layout: false,
         });
       } catch (err) {
@@ -837,16 +1145,18 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
   // Admin: subjects
   // -----------------------------
   router.post('/subjects/add', requireJam3yaAdmin, (req, res) => {
-    const { name } = req.body;
-    jam3yaDb.run('INSERT INTO subjects (name) VALUES (?)', [name], (err) => {
+    const { name, type } = req.body;
+    const subjectType = type === 'income' ? 'income' : 'expense';
+    jam3yaDb.run('INSERT INTO subjects (name, type) VALUES (?, ?)', [name, subjectType], (err) => {
       if (err) console.error(err);
       res.redirect('/jam3ya/dashboard?tab=subjects');
     });
   });
 
   router.post('/subjects/edit', requireJam3yaAdmin, (req, res) => {
-    const { id, name, old_name } = req.body;
-    jam3yaDb.run('UPDATE subjects SET name = ? WHERE id = ?', [name, id], (err) => {
+    const { id, name, old_name, type } = req.body;
+    const subjectType = type === 'income' ? 'income' : 'expense';
+    jam3yaDb.run('UPDATE subjects SET name = ?, type = ? WHERE id = ?', [name, subjectType, id], (err) => {
       if (err) return res.status(500).send('Error updating subject');
       if (old_name && old_name !== name) {
         jam3yaDb.run('UPDATE transactions SET subject = ? WHERE subject = ?', [name, old_name], () => {
@@ -916,7 +1226,267 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
     }
   });
 
-  // Note: dashboard + باقي العمليات الإدارية موجودة في server.js حالياً. 
+  // ------------------------------
+  // Auctions: admin management
+  // ------------------------------
+  router.post('/auctions/save', requireJam3yaAdmin, checkJam3yaDb, auctionUpload, async (req, res) => {
+    try {
+      const {
+        id, title, description, starting_price, min_increment,
+        quantity, unit, start_date, end_date, status, linked_transaction_id,
+      } = req.body;
+
+      if (!title || !starting_price || !min_increment || !start_date || !end_date) {
+        return res.redirect('/jam3ya/dashboard?tab=auctions&error=missing_fields');
+      }
+
+      const allowedStatus = ['draft', 'published', 'cancelled'];
+      const finalStatus = allowedStatus.includes(status) ? status : 'draft';
+      const auctionId = id ? Number(id) : null;
+
+      let image_path = null;
+      if (auctionId) {
+        const existing = await new Promise((resolve, reject) =>
+          jam3yaDb.get('SELECT image_path FROM auction_items WHERE id = ?', [auctionId], (err, row) =>
+            err ? reject(err) : resolve(row)
+          )
+        );
+        if (existing) image_path = existing.image_path || null;
+      }
+
+      if (req.file) {
+        const newImage = await compressAuctionImage(req.file.buffer);
+        if (newImage) {
+          if (image_path) fs.promises.unlink(path.join(__dirname, '..', 'uploads', image_path)).catch(() => {});
+          image_path = newImage;
+        }
+      }
+
+      const linkedId = linked_transaction_id ? Number(linked_transaction_id) : null;
+      const params = [
+        title.trim(),
+        (description || '').trim(),
+        image_path,
+        parseFloat(starting_price),
+        parseFloat(min_increment),
+        quantity ? parseFloat(quantity) : null,
+        (unit || '').trim() || null,
+        toSqlDateTime(start_date),
+        toSqlDateTime(end_date),
+        finalStatus,
+        Number.isInteger(linkedId) && linkedId > 0 ? linkedId : null,
+      ];
+
+      if (auctionId) {
+        jam3yaDb.run(
+          `UPDATE auction_items SET title=?, description=?, image_path=?, starting_price=?, min_increment=?, quantity=?, unit=?, start_date=?, end_date=?, status=?, linked_transaction_id=? WHERE id=?`,
+          [...params, auctionId],
+          (err) => {
+            if (err) {
+              console.error('Auction update error:', err);
+              return res.redirect('/jam3ya/dashboard?tab=auctions&error=save_failed');
+            }
+            res.redirect('/jam3ya/dashboard?tab=auctions');
+          }
+        );
+      } else {
+        jam3yaDb.run(
+          `INSERT INTO auction_items (title, description, image_path, starting_price, min_increment, quantity, unit, start_date, end_date, status, linked_transaction_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          params,
+          (err) => {
+            if (err) {
+              console.error('Auction insert error:', err);
+              return res.redirect('/jam3ya/dashboard?tab=auctions&error=save_failed');
+            }
+            res.redirect('/jam3ya/dashboard?tab=auctions');
+          }
+        );
+      }
+    } catch (err) {
+      console.error('Auction Save Error:', err);
+      res.redirect('/jam3ya/dashboard?tab=auctions&error=save_failed');
+    }
+  });
+
+  router.post('/auctions/cancel', requireJam3yaAdmin, checkJam3yaDb, (req, res) => {
+    const { id } = req.body;
+    jam3yaDb.run(
+      "UPDATE auction_items SET status = 'cancelled' WHERE id = ? AND status IN ('draft','published','ended')",
+      [id],
+      (err) => {
+        if (err) console.error('Auction cancel error:', err);
+        res.redirect('/jam3ya/dashboard?tab=auctions');
+      }
+    );
+  });
+
+  router.post('/auctions/end-now', requireJam3yaAdmin, checkJam3yaDb, (req, res) => {
+    const { id } = req.body;
+    jam3yaDb.run(
+      "UPDATE auction_items SET status = 'ended' WHERE id = ? AND status = 'published'",
+      [id],
+      (err) => {
+        if (err) console.error('Auction end-now error:', err);
+        res.redirect('/jam3ya/dashboard?tab=auctions');
+      }
+    );
+  });
+
+  router.post('/auctions/reopen', requireJam3yaAdmin, checkJam3yaDb, (req, res) => {
+    const { id } = req.body;
+    jam3yaDb.run(
+      "UPDATE auction_items SET status = 'published', winner_member_id = NULL, winning_bid_id = NULL, winner_bid_amount = NULL, awarded_at = NULL WHERE id = ? AND status = 'awarded'",
+      [id],
+      (err) => {
+        if (err) console.error('Auction reopen error:', err);
+        res.redirect('/jam3ya/dashboard?tab=auctions');
+      }
+    );
+  });
+
+  router.post('/auctions/delete', requireJam3yaAdmin, checkJam3yaDb, (req, res) => {
+    const { id } = req.body;
+    jam3yaDb.get('SELECT image_path FROM auction_items WHERE id = ?', [id], (err, row) => {
+      if (row && row.image_path) {
+        fs.promises.unlink(path.join(__dirname, '..', 'uploads', row.image_path)).catch(() => {});
+      }
+      jam3yaDb.run('DELETE FROM auction_bids WHERE auction_id = ?', [id], () => {
+        jam3yaDb.run('DELETE FROM auction_items WHERE id = ?', [id], (delErr) => {
+          if (delErr) console.error('Auction delete error:', delErr);
+          res.redirect('/jam3ya/dashboard?tab=auctions');
+        });
+      });
+    });
+  });
+
+  router.get('/auctions/:id/bids', requireJam3yaAdmin, checkJam3yaDb, (req, res) => {
+    const { id } = req.params;
+    jam3yaDb.all(
+      `SELECT b.id, b.amount, b.created_at, m.name AS member_name, m.phone AS member_phone, m.member_code
+       FROM auction_bids b JOIN members m ON m.id = b.member_id
+       WHERE b.auction_id = ? ORDER BY b.amount DESC, b.id ASC`,
+      [id],
+      (err, rows) => {
+        if (err) return res.status(500).json({ success: false, message: 'خطأ في جلب العروض' });
+        res.json({ success: true, bids: rows || [] });
+      }
+    );
+  });
+
+  router.post('/auctions/:id/award', requireJam3yaAdmin, checkJam3yaDb, (req, res) => {
+    const { id } = req.params;
+    const { winning_bid_id } = req.body;
+
+    jam3yaDb.get(
+      `SELECT b.id, b.amount, b.member_id, m.name AS member_name, m.member_code
+       FROM auction_bids b JOIN members m ON m.id = b.member_id
+       WHERE b.id = ? AND b.auction_id = ?`,
+      [winning_bid_id, id],
+      (err, bid) => {
+        if (err || !bid) return res.status(404).json({ success: false, message: 'العرض غير موجود' });
+
+        jam3yaDb.get('SELECT * FROM auction_items WHERE id = ?', [id], (aErr, auction) => {
+          if (aErr || !auction) return res.status(404).json({ success: false, message: 'المزايدة غير موجودة' });
+          if (!['published', 'ended'].includes(auction.status)) {
+            return res.status(400).json({ success: false, message: 'لا يمكن ترسية هذه المزايدة في حالتها الحالية' });
+          }
+
+          jam3yaDb.run(
+            `UPDATE auction_items SET status='awarded', winner_member_id=?, winning_bid_id=?, winner_bid_amount=?, awarded_at=? WHERE id=?`,
+            [bid.member_id, bid.id, bid.amount, nowSqlDateTime(), id],
+            (uErr) => {
+              if (uErr) return res.status(500).json({ success: false, message: 'فشل حفظ الترسية' });
+              res.json({
+                success: true,
+                member_id: bid.member_id,
+                member_name: bid.member_name,
+                member_code: bid.member_code,
+                amount: bid.amount,
+                auction_title: auction.title,
+                auction_description: auction.description,
+              });
+            }
+          );
+        });
+      }
+    );
+  });
+
+  // ------------------------------
+  // Auctions: public bidding (no jam3ya session required)
+  // ------------------------------
+  router.get('/auctions/:id/status', checkJam3yaDb, (req, res) => {
+    const { id } = req.params;
+    jam3yaDb.get('SELECT starting_price, status, start_date, end_date FROM auction_items WHERE id = ?', [id], (err, rawAuction) => {
+      if (err || !rawAuction) return res.status(404).json({ success: false });
+      const auction = normalizeAuctionDates(rawAuction);
+      getAuctionPriceInfo(id, (pErr, priceRow) => {
+        if (pErr) return res.status(500).json({ success: false });
+        const currentPrice = priceRow && priceRow.top_bid != null ? Number(priceRow.top_bid) : Number(auction.starting_price);
+        res.json({
+          success: true,
+          current_price: currentPrice,
+          bid_count: priceRow ? priceRow.bid_count : 0,
+          effective_status: computeEffectiveStatus(auction),
+        });
+      });
+    });
+  });
+
+  router.post('/auctions/:id/check-passcode', checkJam3yaDb, (req, res) => {
+    const { passcode } = req.body;
+    findMemberByPasscode(passcode, (err, member) => {
+      if (err) return res.status(500).json({ success: false, message: 'حدث خطأ في النظام' });
+      if (!member) return res.json({ success: false, message: 'الرمز السري غير صحيح' });
+      res.json({ success: true, member_name: member.nickname || member.name });
+    });
+  });
+
+  router.post('/auctions/:id/bid', checkJam3yaDb, (req, res) => {
+    const { id } = req.params;
+    const { passcode, amount } = req.body;
+    const bidAmount = parseFloat(amount);
+
+    if (!Number.isFinite(bidAmount) || bidAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'قيمة العرض غير صحيحة' });
+    }
+
+    findMemberByPasscode(passcode, (mErr, member) => {
+      if (mErr) return res.status(500).json({ success: false, message: 'حدث خطأ في النظام' });
+      if (!member) return res.status(403).json({ success: false, message: 'الرمز السري غير صحيح' });
+
+      jam3yaDb.get('SELECT * FROM auction_items WHERE id = ?', [id], (aErr, rawAuction) => {
+        if (aErr || !rawAuction) return res.status(404).json({ success: false, message: 'المزايدة غير موجودة' });
+        const auction = normalizeAuctionDates(rawAuction);
+
+        const now = nowSqlDateTime();
+        if (computeEffectiveStatus(auction, now) !== 'active') {
+          return res.status(400).json({ success: false, message: 'المزايدة غير متاحة للمزايدة حالياً' });
+        }
+
+        getAuctionPriceInfo(id, (pErr, priceRow) => {
+          if (pErr) return res.status(500).json({ success: false, message: 'حدث خطأ في النظام' });
+          const currentPrice = priceRow && priceRow.top_bid != null ? Number(priceRow.top_bid) : Number(auction.starting_price);
+          const minNext = currentPrice + Number(auction.min_increment);
+
+          if (bidAmount < minNext - 0.0001) {
+            return res.status(409).json({
+              success: false,
+              message: `تم تجاوز عرضك من مزايد آخر، السعر الحالي الآن ${currentPrice}`,
+              current_price: currentPrice,
+            });
+          }
+
+          jam3yaDb.run('INSERT INTO auction_bids (auction_id, member_id, amount) VALUES (?, ?, ?)', [id, member.id, bidAmount], (iErr) => {
+            if (iErr) return res.status(500).json({ success: false, message: 'فشل تسجيل العرض' });
+            res.json({ success: true, current_price: bidAmount });
+          });
+        });
+      });
+    });
+  });
+
+  // Note: dashboard + باقي العمليات الإدارية موجودة في server.js حالياً.
   // تم نقلها هنا (خيار A) لتصبح كل مسارات الجمعية داخل Router واحد تحت /jam3ya/*.
 
   // ------------------------------
@@ -990,7 +1560,10 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
             seenSubjects.add(subjectName);
             recentSubjects.push(subjectName);
           });
-        const activeSubjects = recentSubjects.slice(0, 4);
+        const activeSubjects = recentSubjects.slice(0, 4).map((name) => {
+          const subj = subjects.find((s) => s.name === name);
+          return { name, type: subj ? (subj.type || 'expense') : 'expense' };
+        });
 
         const mainData = processJam3yaData(transactions, 0);
 
@@ -1022,8 +1595,10 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
         }
 
         const memberMap = {};
+        const memberIdMap = {};
         (members || []).forEach((m) => {
           memberMap[m.member_code] = m.name;
+          memberIdMap[m.id] = m.name;
         });
 
         const processedTransactions = (transactions || [])
@@ -1099,6 +1674,54 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
           return true;
         });
 
+        let auctions = [];
+        try {
+          await syncEndedAuctions();
+          const auctionRows = (await dbAll('SELECT * FROM auction_items ORDER BY created_at DESC')).map(normalizeAuctionDates);
+          const now = nowSqlDateTime();
+          auctions = await Promise.all(
+            auctionRows.map(
+              (a) =>
+                new Promise((resolve) => {
+                  getAuctionPriceInfo(a.id, (err, priceRow) => {
+                    const currentPrice =
+                      !err && priceRow && priceRow.top_bid != null ? Number(priceRow.top_bid) : Number(a.starting_price);
+                    resolve({
+                      ...a,
+                      current_price: currentPrice,
+                      bid_count: !err && priceRow ? priceRow.bid_count : 0,
+                      effective_status: computeEffectiveStatus(a, now),
+                      start_date_display: formatArabicShortDateTime(a.start_date),
+                      end_date_display: formatArabicShortDateTime(a.end_date),
+                      winner_name: a.winner_member_id ? (memberIdMap[a.winner_member_id] || null) : null,
+                    });
+                  });
+                })
+            )
+          );
+        } catch (err) {
+          console.error('Load auctions for dashboard error:', err);
+          auctions = [];
+        }
+
+        let recentTransactionsForAuctionLink = [];
+        try {
+          const linkRows = await dbAll(
+            "SELECT id, date, subject, item, details FROM transactions WHERE amount < 0 AND subject NOT LIKE '%فاتور%' AND subject NOT LIKE '%فواتير%' ORDER BY date DESC, id DESC LIMIT 100"
+          );
+          recentTransactionsForAuctionLink = linkRows.map((t) => {
+            const displayItem = memberMap[t.item] || t.item || '';
+            const shortDate = formatShortDateDMY(t.date);
+            const labelParts = [shortDate, t.subject, displayItem].filter(Boolean);
+            if (t.details) labelParts.push(t.details);
+            return { id: t.id, label: labelParts.join(' - '), details: t.details || '' };
+          });
+        } catch (err) {
+          recentTransactionsForAuctionLink = [];
+        }
+
+        const serverNowForView = nowSqlDateTime().slice(0, 16).replace(' ', 'T');
+
         res.render('jam3ya-dashboard', {
           members,
           subjects,
@@ -1114,6 +1737,9 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
           adminName,
           visitors,
           infoMessages,
+          auctions,
+          recentTransactionsForAuctionLink,
+          serverNowForView,
           layout: false,
         });
       } catch (err) {
@@ -1353,13 +1979,15 @@ function buildJam3yaRouter({ jam3yaDb, jam3yaDbError, getGulfDateString, getGulf
   // Subjects
   // ------------------------------
   router.post('/subjects/add', requireJam3yaAdmin, (req, res) => {
-    const { name } = req.body;
-    jam3yaDb.run('INSERT INTO subjects (name) VALUES (?)', [name], () => res.redirect('/jam3ya/dashboard?tab=subjects'));
+    const { name, type } = req.body;
+    const subjectType = type === 'income' ? 'income' : 'expense';
+    jam3yaDb.run('INSERT INTO subjects (name, type) VALUES (?, ?)', [name, subjectType], () => res.redirect('/jam3ya/dashboard?tab=subjects'));
   });
 
   router.post('/subjects/edit', requireJam3yaAdmin, (req, res) => {
-    const { id, name, old_name } = req.body;
-    jam3yaDb.run('UPDATE subjects SET name = ? WHERE id = ?', [name, id], (err) => {
+    const { id, name, old_name, type } = req.body;
+    const subjectType = type === 'income' ? 'income' : 'expense';
+    jam3yaDb.run('UPDATE subjects SET name = ?, type = ? WHERE id = ?', [name, subjectType, id], (err) => {
       if (err) return res.status(500).send('Error updating subject');
       if (old_name && old_name !== name) {
         jam3yaDb.run('UPDATE transactions SET subject = ? WHERE subject = ?', [name, old_name], () => {

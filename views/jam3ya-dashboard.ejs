@@ -160,7 +160,6 @@
             border-color: var(--primary);
         }
         .table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-width: 100%; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
-        .table-container table { min-width: auto; }
         @media (max-width: 600px) {
             header { flex-direction: column; align-items: stretch; gap: 12px; }
             .header-actions { width: 100%; flex-wrap: wrap; gap: 10px; }
@@ -177,16 +176,33 @@
         .table-fit { table-layout: fixed; width: 100%; }
         .table-fit th, .table-fit td { white-space: normal; vertical-align: middle; }
         
-        .transactions-table { min-width: 1200px; }
+        .transactions-table { min-width: 1250px; table-layout: fixed; width: auto; }
         .transactions-table th:nth-child(1), .transactions-table td:nth-child(1) { width: 50px; text-align: center; padding: 5px; }
-        .transactions-table th:nth-child(2), .transactions-table td:nth-child(2) { width: 120px; white-space: nowrap; }
+        .transactions-table th:nth-child(2), .transactions-table td:nth-child(2) { width: 110px; white-space: nowrap; }
         .transactions-table th:nth-child(3), .transactions-table td:nth-child(3) { width: 150px; overflow-wrap: break-word; }
-        .transactions-table th:nth-child(4), .transactions-table td:nth-child(4) { width: 160px; overflow-wrap: break-word; }
-        .transactions-table th:nth-child(5), .transactions-table td:nth-child(5) { width: 120px; white-space: nowrap; }
-        .transactions-table th:nth-child(6), .transactions-table td:nth-child(6) { width: 140px; white-space: nowrap; }
-        .transactions-table th:nth-child(7), .transactions-table td:nth-child(7) { width: 250px; overflow-wrap: break-word; }
-        .transactions-table th:nth-child(8), .transactions-table td:nth-child(8) { width: 180px; white-space: nowrap; }
+        .transactions-table th:nth-child(4), .transactions-table td:nth-child(4) { width: 150px; overflow-wrap: break-word; }
+        .transactions-table th:nth-child(5), .transactions-table td:nth-child(5) { width: 130px; white-space: nowrap; }
+        .transactions-table th:nth-child(6), .transactions-table td:nth-child(6) { width: 130px; white-space: nowrap; }
+        .transactions-table th:nth-child(7), .transactions-table td:nth-child(7) { width: 230px; overflow-wrap: break-word; }
+        .transactions-table th:nth-child(8), .transactions-table td:nth-child(8) { width: 300px; white-space: nowrap; }
         
+        .auctions-table { min-width: 1170px; table-layout: fixed; width: auto; }
+        .auctions-table th:nth-child(1), .auctions-table td:nth-child(1) { width: 190px; overflow-wrap: break-word; }
+        .auctions-table th:nth-child(2), .auctions-table td:nth-child(2) { width: 90px; white-space: nowrap; text-align: center; }
+        .auctions-table th:nth-child(3), .auctions-table td:nth-child(3) { width: 150px; overflow-wrap: break-word; text-align: center; }
+        .auctions-table th:nth-child(4), .auctions-table td:nth-child(4) { width: 100px; white-space: nowrap; text-align: center; }
+        .auctions-table th:nth-child(5), .auctions-table td:nth-child(5) { width: 90px; white-space: nowrap; text-align: center; }
+        .auctions-table th:nth-child(6), .auctions-table td:nth-child(6) { width: 160px; white-space: nowrap; text-align: center; }
+        .auctions-table th:nth-child(7), .auctions-table td:nth-child(7) { width: 160px; white-space: nowrap; text-align: center; }
+        .auctions-table th:nth-child(8), .auctions-table td:nth-child(8) { width: 230px; white-space: nowrap; }
+        .auctions-table .btn { white-space: nowrap; margin: 2px; }
+
+        .auction-bids-table { min-width: 520px; table-layout: fixed; width: auto; }
+        .auction-bids-table th:nth-child(1), .auction-bids-table td:nth-child(1) { width: 190px; overflow-wrap: break-word; }
+        .auction-bids-table th:nth-child(2), .auction-bids-table td:nth-child(2) { width: 110px; white-space: nowrap; text-align: center; }
+        .auction-bids-table th:nth-child(3), .auction-bids-table td:nth-child(3) { width: 100px; white-space: nowrap; text-align: center; }
+        .auction-bids-table th:nth-child(4), .auction-bids-table td:nth-child(4) { width: 120px; white-space: nowrap; text-align: center; }
+
         .members-table { min-width: 1400px; }
         .members-table.compact { min-width: 1100px; }
         .members-table .col-code { width: 80px; white-space: nowrap; }
@@ -202,10 +218,11 @@
         .members-table th .sort-icon { margin-left: 6px; color: #999; }
         .members-table th.active .sort-icon { color: var(--secondary); }
         
-        .subjects-table { min-width: 700px; }
+        .subjects-table { min-width: 750px; }
         .subjects-table th:nth-child(1), .subjects-table td:nth-child(1) { width: 50px; text-align: center; padding: 5px; }
-        .subjects-table th:nth-child(2), .subjects-table td:nth-child(2) { width: 450px; overflow-wrap: break-word; }
-        .subjects-table th:nth-child(3), .subjects-table td:nth-child(3) { width: 200px; white-space: nowrap; text-align: center; }
+        .subjects-table th:nth-child(2), .subjects-table td:nth-child(2) { width: 350px; overflow-wrap: break-word; }
+        .subjects-table th:nth-child(3), .subjects-table td:nth-child(3) { width: 150px; white-space: nowrap; text-align: center; }
+        .subjects-table th:nth-child(4), .subjects-table td:nth-child(4) { width: 200px; white-space: nowrap; text-align: center; }
         
         .unpaid-table { min-width: 800px; }
         .unpaid-table th:nth-child(1), .unpaid-table td:nth-child(1) { width: 240px; overflow-wrap: break-word; }
@@ -263,10 +280,73 @@
             <button class="tab-btn" onclick="openTab('members')"><i class="fa-solid fa-users" style="margin-left:8px;"></i>الأعضاء</button>
             <button class="tab-btn active" onclick="openTab('transactions')"><i class="fa-solid fa-list" style="margin-left:8px;"></i>سجل العمليات</button>
             <button class="tab-btn" onclick="openTab('subjects')"><i class="fa-solid fa-tags" style="margin-left:8px;"></i>المواضيع</button>
+            <button class="tab-btn" onclick="openTab('obligations')"><i class="fa-solid fa-file-invoice-dollar" style="margin-left:8px;"></i>الالتزامات</button>
             <button class="tab-btn" onclick="openTab('unpaid')"><i class="fa-solid fa-clock" style="margin-left:8px;"></i>المتأخرين عن الدفع</button>
             <button class="tab-btn" onclick="openTab('paymentReport')"><i class="fa-solid fa-calendar-check" style="margin-left:8px;"></i>تقرير الدفع بالسنوات</button>
             <button class="tab-btn" onclick="openTab('visitors')"><i class="fa-solid fa-globe" style="margin-left:8px;"></i>سجل الزوار</button>
             <button class="tab-btn" onclick="openTab('info-messages')"><i class="fa-solid fa-bullhorn" style="margin-left:8px;"></i>رسائل المعلومات</button>
+            <button class="tab-btn" onclick="openTab('auctions')"><i class="fa-solid fa-gavel" style="margin-left:8px;"></i>المزايدات</button>
+        </div>
+
+        <!-- Auctions Tab -->
+        <div id="auctions" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>مزايدات المواد المتبقية من المشاريع</h3>
+                <button class="btn btn-success" onclick="showAddAuctionModal()">+ إضافة مزايدة</button>
+            </div>
+            <div class="table-container">
+            <table class="table-fit auctions-table">
+                <thead>
+                    <tr>
+                        <th>المادة</th>
+                        <th>الحالة</th>
+                        <th>الفائز</th>
+                        <th>السعر الحالي</th>
+                        <th>عدد العروض</th>
+                        <th>البداية</th>
+                        <th>النهاية</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% const auctionStatusLabels = { draft: 'مسودة', published: 'منشورة', upcoming: 'لم تبدأ بعد', active: 'جارية', ended: 'منتهية', awarded: 'مرساة', cancelled: 'ملغاة' }; %>
+                    <% if (typeof auctions !== 'undefined' && auctions.length > 0) { %>
+                        <% auctions.forEach(a => { %>
+                        <tr>
+                            <td>
+                                <%= a.title %>
+                                <% if (a.quantity) { %><br><small>الكمية: <%= a.quantity %> <%= a.unit || '' %></small><% } %>
+                            </td>
+                            <td><%= auctionStatusLabels[a.effective_status] || a.status %></td>
+                            <td><%= a.winner_name || '-' %></td>
+                            <td><%= Number(a.current_price).toFixed(3) %></td>
+                            <td><%= a.bid_count %></td>
+                            <td><%= a.start_date_display %></td>
+                            <td><%= a.end_date_display %></td>
+                            <td>
+                                <% if (a.status === 'draft' || a.status === 'published') { %>
+                                    <button type="button" class="btn btn-primary edit-auction-btn" data-auction="<%= JSON.stringify({ id: a.id, title: a.title, description: a.description || '', image_path: a.image_path || '', starting_price: a.starting_price, min_increment: a.min_increment, quantity: a.quantity, unit: a.unit || '', start_date: String(a.start_date).slice(0,16).replace(' ','T'), end_date: String(a.end_date).slice(0,16).replace(' ','T'), status: a.status, linked_transaction_id: a.linked_transaction_id }) %>">تعديل</button>
+                                <% } %>
+                                <button type="button" class="btn btn-outline view-bids-btn" data-id="<%= a.id %>" data-status="<%= a.status %>" data-title="<%= a.title %>" data-description="<%= a.description || '' %>">عرض العروض</button>
+                                <% if (a.status === 'published') { %>
+                                    <button type="button" class="btn btn-outline" onclick="endAuctionNow(<%= a.id %>)">إنهاء الآن</button>
+                                <% } %>
+                                <% if (a.status === 'awarded') { %>
+                                    <button type="button" class="btn btn-outline" onclick="reopenAuction(<%= a.id %>)">إعادة فتح</button>
+                                <% } %>
+                                <% if (a.status === 'draft' || a.status === 'published' || a.status === 'ended') { %>
+                                    <button type="button" class="btn btn-danger" onclick="cancelAuction(<%= a.id %>)">إلغاء</button>
+                                <% } %>
+                                <button type="button" class="btn btn-danger" onclick="deleteAuction(<%= a.id %>)">حذف</button>
+                            </td>
+                        </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <tr><td colspan="8" style="text-align:center;">لا توجد مزايدات حتى الآن</td></tr>
+                    <% } %>
+                </tbody>
+            </table>
+            </div>
         </div>
 
         <!-- Members Tab -->
@@ -441,7 +521,7 @@
                     <button type="button" id="btnAllTransactions" class="btn btn-outline" onclick="filterTransactionsRange('all')">كل العمليات</button>
                 </div>
                 <div class="table-container">
-                <table class="transactions-table table-fit">
+                <table class="transactions-table">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -497,12 +577,12 @@
             </div>
         </div>
 
-        <button class="accordion-btn" style="margin-top: 30px;" onclick="toggleAccordion('admin-obligations-log')">
-            <span><i class="fa-solid fa-file-invoice-dollar" style="margin-left:8px;"></i>سجل الالتزامات (الديون)</span>
-            <i class="fa-solid fa-chevron-down accordion-icon"></i>
-        </button>
-        <div id="admin-obligations-log" class="accordion-content">
-            <h3>الالتزامات (الديون)</h3>
+        <!-- Obligations Tab -->
+        <div id="obligations" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>الالتزامات (الديون)</h3>
+                <button class="btn btn-success" onclick="showAddObligationModal()">+ إضافة التزام</button>
+            </div>
             <% if (obligations && obligations.length > 0) { %>
                 <div class="table-container">
                     <table class="table-fit payments-table">
@@ -568,6 +648,7 @@
                     <tr>
                         <th>#</th>
                         <th>الموضوع</th>
+                        <th>نوع العملية</th>
                         <th>إجراءات</th>
                     </tr>
                 </thead>
@@ -577,7 +658,15 @@
                         <td style="font-weight: bold; color: var(--text-muted);"><%= s.id %></td>
                         <td><%= s.name %></td>
                         <td>
-                            <button class="btn btn-warning" onclick="editSubject('<%= s.id %>', '<%= s.name %>')">تعديل</button>
+                            <% if (s.type === 'income') { %>
+                                <span class="badge bg-soft-success" style="color: var(--text-success); padding: 4px 10px; border-radius: 12px; font-size: 0.85em;">وارد</span>
+                            <% } else { %>
+                                <span class="badge bg-soft-danger" style="color: var(--text-danger); padding: 4px 10px; border-radius: 12px; font-size: 0.85em;">صادر</span>
+                            <% } %>
+                        </td>
+                        <td>
+                            <% const sType = s.type || 'expense'; %>
+                            <button class="btn btn-warning" onclick="editSubject('<%= s.id %>', '<%= s.name %>', '<%= sType %>')">تعديل</button>
                             <button class="btn btn-danger" onclick="showDeleteConfirm('subject','<%= s.id %>','هل أنت متأكد من حذف هذا الموضوع؟ سيظل اسم الموضوع موجوداً في العمليات القديمة ولكن لن يظهر في القائمة.')">حذف</button>
                         </td>
                     </tr>
@@ -594,7 +683,7 @@
             <div style="background: var(--surface); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
                 <h4>نموذج رسالة الواتساب</h4>
                 <div class="form-group">
-                    <label>نص الرسالة (استخدم {{اللقب}} لإدراج لقب العضو أو اسمه الأول تلقائياً)</label>
+                    <label>نص الرسالة (استخدم {{اللقب}} لإدراج لقب العضو أو اسمه الأول تلقائياً، و{{الكود}} لإدراج رمز دخوله للموقع)</label>
                     <textarea id="whatsappTemplate" style="min-height: 150px; direction: rtl;">{{اللقب}} تحية طيبة ومساء سعيد 
 نود تذكيركم بدفع رسوم المساهمة السنوية لجمعية الخطوة الأهلية والبالغة 12 ريال عماني 
 التحويل عن طريق 
@@ -634,7 +723,7 @@
                             <td class="unpaid-name"><div class="primary-name"><%= m.name %></div></td>
                             <td><%= m.phone %></td>
                             <td>
-                                <button class="btn btn-success" onclick="sendWhatsapp('<%= m.phone %>', `<%= m.nickname || '' %>`, `<%= m.name %>`)">
+                                <button class="btn btn-success" onclick="sendWhatsapp('<%= m.phone %>', `<%= m.nickname || '' %>`, `<%= m.name %>`, `<%= m.passcode || '' %>`)">
                                     إرسال واتساب
                                 </button>
                             </td>
@@ -1039,6 +1128,15 @@
                     <label>اسم الموضوع</label>
                     <input type="text" name="name" required>
                 </div>
+                <div class="form-group">
+                    <label>نوع العملية:</label>
+                    <div class="checkbox-group">
+                        <input type="radio" name="type" value="income" id="add_subject_income">
+                        <label for="add_subject_income">وارد (مدخول / مساهمة)</label>
+                        <input type="radio" name="type" value="expense" id="add_subject_expense" checked>
+                        <label for="add_subject_expense">صادر (مصروف / تسليم)</label>
+                    </div>
+                </div>
                 <button type="submit" class="btn btn-success" style="width: 100%">إضافة</button>
             </form>
         </div>
@@ -1057,6 +1155,15 @@
                 <div class="form-group">
                     <label>اسم الموضوع</label>
                     <input type="text" name="name" id="editSubjectName" required>
+                </div>
+                <div class="form-group">
+                    <label>نوع العملية:</label>
+                    <div class="checkbox-group">
+                        <input type="radio" name="type" value="income" id="edit_subject_income">
+                        <label for="edit_subject_income">وارد (مدخول / مساهمة)</label>
+                        <input type="radio" name="type" value="expense" id="edit_subject_expense" checked>
+                        <label for="edit_subject_expense">صادر (مصروف / تسليم)</label>
+                    </div>
                 </div>
                 <div class="bg-soft-warning" style="color: var(--text-warning); padding: 10px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 4px;">
                     <small>تنبيه: تعديل اسم الموضوع سيقوم بتحديث جميع العمليات القديمة المرتبطة به أيضاً.</small>
@@ -1241,11 +1348,18 @@
             modal.style.display = 'flex';
         }
 
-        function selectSubject(val) {
+        function selectSubject(val, type) {
             const select = document.getElementById('transaction_subject');
             select.value = val;
             toggleTransactionFields();
-            
+
+            // Auto-set income/expense based on subject type
+            if (type === 'income') {
+                document.getElementById('type_income').checked = true;
+            } else {
+                document.getElementById('type_expense').checked = true;
+            }
+
             // Visual feedback
             document.querySelectorAll('#quick-subjects .btn-outline').forEach(btn => {
                 btn.classList.remove('active');
@@ -1409,16 +1523,16 @@
             alert('تم حفظ نموذج الرسالة بنجاح');
         }
 
-        function sendWhatsapp(phone, nickname, name) {
+        function sendWhatsapp(phone, nickname, name, code) {
             let template = document.getElementById('whatsappTemplate').value;
-            
+
             // If template is empty in textarea, try loading from local storage
             if (!template.trim()) {
                  template = localStorage.getItem('jam3ya_whatsapp_template') || document.getElementById('whatsappTemplate').value;
             }
 
             const honorific = nickname ? nickname : name.split(' ')[0];
-            const message = template.replace('{{اللقب}}', honorific);
+            const message = template.replace('{{اللقب}}', honorific).replace('{{الكود}}', code || '');
             
             // Format phone number: add 968 if not present
             let formattedPhone = phone.replace(/\D/g, ''); // Remove non-digits
@@ -1715,10 +1829,11 @@
             document.getElementById('subjectModal').style.display = 'flex';
         }
 
-        function editSubject(id, name) {
+        function editSubject(id, name, type) {
             document.getElementById('editSubjectId').value = id;
             document.getElementById('editSubjectOldName').value = name;
             document.getElementById('editSubjectName').value = name;
+            document.getElementById(type === 'income' ? 'edit_subject_income' : 'edit_subject_expense').checked = true;
             document.getElementById('editSubjectModal').style.display = 'flex';
         }
 
@@ -1778,7 +1893,7 @@
         }
 
         window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
+            if (event.target.classList.contains('modal') && event.target.id !== 'auctionModal') {
                 event.target.style.display = "none";
             }
         }
@@ -1799,15 +1914,302 @@
             toggleTransactionFields();
         }
 
+        var SERVER_NOW_OMAN = '<%= serverNowForView %>';
+        var linkedTransactionOptions = <%- JSON.stringify(typeof recentTransactionsForAuctionLink !== 'undefined' ? recentTransactionsForAuctionLink : []).replace(/</g, '\\u003c') %>;
+
+        function computeTomorrowNinePM(nowStr) {
+            var datePart = (nowStr || '').split('T')[0];
+            var d = new Date(datePart + 'T00:00:00');
+            d.setDate(d.getDate() + 1);
+            var y = d.getFullYear();
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var day = String(d.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + day + 'T21:00';
+        }
+
+        function resetAuctionImagePreview() {
+            document.getElementById('auctionImagePreview').style.display = 'none';
+            document.getElementById('auctionImagePreviewImg').src = '';
+        }
+
+        function setAuctionLinkedTransactionDisplay(id) {
+            var hidden = document.getElementById('auctionLinkedTransaction');
+            var search = document.getElementById('auctionLinkedTransactionSearch');
+            hidden.value = id || '';
+            if (!id) { search.value = ''; return; }
+            var found = linkedTransactionOptions.find(function(o) { return String(o.id) === String(id); });
+            search.value = found ? found.label : ('سجل محفوظ (#' + id + ')');
+        }
+
+        function showAddAuctionModal() {
+            document.getElementById('auctionModalTitle').innerText = 'إضافة مزايدة';
+            document.getElementById('auctionId').value = '';
+            document.getElementById('auctionTitle').value = '';
+            document.getElementById('auctionDescription').value = '';
+            setAuctionLinkedTransactionDisplay('');
+            document.getElementById('auctionStartingPrice').value = 5;
+            document.getElementById('auctionMinIncrement').value = 1;
+            document.getElementById('auctionQuantity').value = '';
+            document.getElementById('auctionUnit').value = '';
+            document.getElementById('auctionStartDate').value = SERVER_NOW_OMAN;
+            document.getElementById('auctionEndDate').value = computeTomorrowNinePM(SERVER_NOW_OMAN);
+            document.getElementById('auctionStatus').value = 'draft';
+            resetAuctionImagePreview();
+            document.getElementById('auctionModal').style.display = 'flex';
+        }
+
+        function editAuction(a) {
+            document.getElementById('auctionModalTitle').innerText = 'تعديل مزايدة';
+            document.getElementById('auctionId').value = a.id;
+            document.getElementById('auctionTitle').value = a.title;
+            document.getElementById('auctionDescription').value = a.description || '';
+            setAuctionLinkedTransactionDisplay(a.linked_transaction_id || '');
+            document.getElementById('auctionStartingPrice').value = a.starting_price;
+            document.getElementById('auctionMinIncrement').value = a.min_increment;
+            document.getElementById('auctionQuantity').value = a.quantity || '';
+            document.getElementById('auctionUnit').value = a.unit || '';
+            document.getElementById('auctionStartDate').value = a.start_date;
+            document.getElementById('auctionEndDate').value = a.end_date;
+            document.getElementById('auctionStatus').value = a.status;
+            if (a.image_path) {
+                document.getElementById('auctionImagePreviewImg').src = '/uploads/' + a.image_path;
+                document.getElementById('auctionImagePreview').style.display = 'block';
+            } else {
+                resetAuctionImagePreview();
+            }
+            document.getElementById('auctionModal').style.display = 'flex';
+        }
+
+        function renderLinkedTransactionResults(filterText) {
+            var resultsBox = document.getElementById('auctionLinkedTransactionResults');
+            var q = (filterText || '').trim().toLowerCase();
+            var matches = linkedTransactionOptions.filter(function(o) {
+                return !q || o.label.toLowerCase().indexOf(q) !== -1;
+            }).slice(0, 30);
+
+            var html = '<div class="searchable-result-item clear-link" data-id="">-- بدون ربط --</div>';
+            if (matches.length === 0) {
+                html += '<div class="searchable-result-item muted">لا توجد نتائج</div>';
+            } else {
+                html += matches.map(function(o) {
+                    return '<div class="searchable-result-item" data-id="' + o.id + '">' + o.label + '</div>';
+                }).join('');
+            }
+            resultsBox.innerHTML = html;
+            resultsBox.style.display = 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var searchInput = document.getElementById('auctionLinkedTransactionSearch');
+            var resultsBox = document.getElementById('auctionLinkedTransactionResults');
+            if (!searchInput || !resultsBox) return;
+
+            searchInput.addEventListener('input', function(e) { renderLinkedTransactionResults(e.target.value); });
+            searchInput.addEventListener('focus', function(e) { renderLinkedTransactionResults(e.target.value); });
+
+            resultsBox.addEventListener('click', function(e) {
+                var item = e.target.closest('.searchable-result-item');
+                if (!item) return;
+                var id = item.getAttribute('data-id');
+                if (!id) {
+                    setAuctionLinkedTransactionDisplay('');
+                } else {
+                    var chosen = linkedTransactionOptions.find(function(o) { return String(o.id) === id; });
+                    if (chosen) {
+                        document.getElementById('auctionLinkedTransaction').value = chosen.id;
+                        searchInput.value = chosen.label;
+                        if (chosen.details) document.getElementById('auctionDescription').value = chosen.details;
+                    }
+                }
+                resultsBox.style.display = 'none';
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('#auctionLinkedTransactionWrapper')) {
+                    resultsBox.style.display = 'none';
+                }
+            });
+
+            var editBtns = document.querySelectorAll('.edit-auction-btn');
+            editBtns.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    editAuction(JSON.parse(btn.getAttribute('data-auction')));
+                });
+            });
+
+            var viewBidsBtns = document.querySelectorAll('.view-bids-btn');
+            viewBidsBtns.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    viewAuctionBids(btn.getAttribute('data-id'), btn.getAttribute('data-status'), btn.getAttribute('data-title'), btn.getAttribute('data-description'));
+                });
+            });
+        });
+
+        function cancelAuction(id) {
+            if (!confirm('هل أنت متأكد من إلغاء هذه المزايدة؟')) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/jam3ya/auctions/cancel';
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'id';
+            input.value = id;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function endAuctionNow(id) {
+            if (!confirm('هل أنت متأكد من إنهاء هذه المزايدة الآن؟')) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/jam3ya/auctions/end-now';
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'id';
+            input.value = id;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function reopenAuction(id) {
+            if (!confirm('هل أنت متأكد من إعادة فتح هذه المزايدة؟ سيتم إلغاء الترسية الحالية.')) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/jam3ya/auctions/reopen';
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'id';
+            input.value = id;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function deleteAuction(id) {
+            if (!confirm('هل أنت متأكد من حذف هذه المزايدة نهائياً؟ سيتم حذف كل العروض المرتبطة بها.')) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/jam3ya/auctions/delete';
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'id';
+            input.value = id;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function viewAuctionBids(auctionId, auctionStatus, auctionTitle, auctionDescription) {
+            document.getElementById('auctionBidsTitle').innerText = 'عروض المزايدة: ' + auctionTitle;
+            document.getElementById('auctionBidsBody').innerHTML = '<tr><td colspan="4">جاري التحميل...</td></tr>';
+            document.getElementById('auctionBidsModal').style.display = 'flex';
+
+            fetch('/jam3ya/auctions/' + auctionId + '/bids')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success || !data.bids || data.bids.length === 0) {
+                        document.getElementById('auctionBidsBody').innerHTML = '<tr><td colspan="4">لا توجد عروض بعد</td></tr>';
+                        return;
+                    }
+                    const canAward = (auctionStatus === 'published' || auctionStatus === 'ended');
+                    const escapeAttr = function(s) {
+                        return String(s == null ? '' : s)
+                            .replace(/&/g, '&amp;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;');
+                    };
+                    document.getElementById('auctionBidsBody').innerHTML = data.bids.map(function(b) {
+                        const awardBtn = canAward
+                            ? '<button type="button" class="btn btn-success award-bid-btn" data-auction-id="' + auctionId + '" data-bid-id="' + b.id + '" data-title="' + escapeAttr(auctionTitle) + '" data-description="' + escapeAttr(auctionDescription) + '">ترسية</button>'
+                            : '-';
+                        return '<tr><td>' + b.member_name + ' (' + b.member_code + ')</td><td>' + (b.member_phone || '-') + '</td><td>' + Number(b.amount).toFixed(3) + '</td><td>' + awardBtn + '</td></tr>';
+                    }).join('');
+                    document.querySelectorAll('.award-bid-btn').forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            awardAuction(btn.getAttribute('data-auction-id'), btn.getAttribute('data-bid-id'), btn.getAttribute('data-title'), btn.getAttribute('data-description'));
+                        });
+                    });
+                })
+                .catch(() => {
+                    document.getElementById('auctionBidsBody').innerHTML = '<tr><td colspan="4">حدث خطأ في التحميل</td></tr>';
+                });
+        }
+
+        function awardAuction(auctionId, bidId, auctionTitle, auctionDescription) {
+            if (!confirm('هل أنت متأكد من ترسية المزايدة على هذا العرض؟')) return;
+            fetch('/jam3ya/auctions/' + auctionId + '/award', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ winning_bid_id: bidId })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) { alert(data.message || 'فشل حفظ الترسية'); return; }
+                    document.getElementById('auctionBidsModal').style.display = 'none';
+                    openAuctionSaleTransaction(data.amount, data.auction_title || auctionTitle, data.auction_description || auctionDescription, data.member_code);
+                })
+                .catch(() => alert('حدث خطأ في النظام'));
+        }
+
+        function openAuctionSaleTransaction(amount, auctionTitle, auctionDescription, memberCode) {
+            showAddTransactionModal();
+            const incomeRadio = document.getElementById('type_income');
+            const expenseRadio = document.getElementById('type_expense');
+            if (incomeRadio) incomeRadio.checked = true;
+            if (expenseRadio) expenseRadio.checked = false;
+
+            const subjectSelect = document.getElementById('transaction_subject');
+            if (subjectSelect) {
+                let hasSaleSubject = false;
+                for (let i = 0; i < subjectSelect.options.length; i++) {
+                    if (subjectSelect.options[i].value === 'بيع') { hasSaleSubject = true; break; }
+                }
+                if (!hasSaleSubject) {
+                    const opt = document.createElement('option');
+                    opt.value = 'بيع';
+                    opt.text = 'بيع';
+                    subjectSelect.appendChild(opt);
+                }
+                subjectSelect.value = 'بيع';
+            }
+
+            toggleTransactionFields();
+
+            const descInput = document.getElementById('transaction_description');
+            if (descInput) descInput.value = auctionTitle;
+
+            const amountInput = document.querySelector('#addTransactionModal input[name="amount"]');
+            const detailsInput = document.querySelector('#addTransactionModal textarea[name="details"]');
+            if (amountInput) amountInput.value = amount;
+            if (detailsInput) {
+                let text = 'بيع بالمزايدة: ' + auctionTitle;
+                if (auctionDescription) text += ' - ' + auctionDescription;
+                text += ' | رقم العضو الفائز: ' + memberCode;
+                detailsInput.value = text;
+            }
+        }
+
         function toggleTransactionFields() {
             const subjectSelect = document.getElementById('transaction_subject');
-            const subject = subjectSelect.options[subjectSelect.selectedIndex].value;
-            
+            const selectedOption = subjectSelect.options[subjectSelect.selectedIndex];
+            const subject = selectedOption.value;
+            const subjectType = selectedOption.getAttribute('data-type') || 'expense';
+
+            // Auto-set income/expense radio based on subject type
+            if (subjectType === 'income') {
+                document.getElementById('type_income').checked = true;
+            } else {
+                document.getElementById('type_expense').checked = true;
+            }
+
             const memberField = document.getElementById('member_field');
             const descField = document.getElementById('description_field');
             const memberInput = document.getElementById('transaction_member');
             const descInput = document.getElementById('transaction_description');
-            
+
             // Target specific inputs in the Add Modal
             const amountInput = document.querySelector('#addTransactionModal input[name="amount"]');
             const detailsInput = document.querySelector('#addTransactionModal textarea[name="details"]');
@@ -1819,7 +2221,7 @@
                 memberInput.required = true;
                 descInput.required = false;
                 if (!memberInput.value) descInput.value = ''; // Clear description only if empty
-                
+
                 // Set default values
                 amountInput.value = 12;
                 detailsInput.value = new Date().getFullYear();
@@ -1829,7 +2231,7 @@
                 memberInput.required = false;
                 descInput.required = true;
                 memberInput.value = ''; // Clear member if switching to description
-                
+
                 // Clear defaults if they match the auto-set ones
                 if (amountInput.value == 12) amountInput.value = '';
                 if (detailsInput.value == new Date().getFullYear()) detailsInput.value = '';
@@ -1838,8 +2240,17 @@
 
         function toggleEditTransactionFields() {
             const subjectSelect = document.getElementById('edit_transaction_subject');
-            const subject = subjectSelect.options[subjectSelect.selectedIndex].value;
-            
+            const selectedOption = subjectSelect.options[subjectSelect.selectedIndex];
+            const subject = selectedOption.value;
+            const subjectType = selectedOption.getAttribute('data-type') || 'expense';
+
+            // Auto-set income/expense radio based on subject type
+            if (subjectType === 'income') {
+                document.getElementById('edit_type_income').checked = true;
+            } else {
+                document.getElementById('edit_type_expense').checked = true;
+            }
+
             const memberField = document.getElementById('edit_member_field');
             const descField = document.getElementById('edit_description_field');
             const memberInput = document.getElementById('edit_transaction_member');
@@ -1935,6 +2346,7 @@
                         <option value="">-- بدون ربط --</option>
                         <% if (obligations && obligations.length > 0) { %>
                             <% obligations.forEach(o => { 
+                                   if (Number(o.remaining_amount || 0) <= 0) return;
                                    const rawDesc = o.description || '';
                                    const lines = rawDesc.split('\n');
                                    const baseDesc = (lines[0] || '').trim();
@@ -1964,7 +2376,7 @@
                     <div id="quick-subjects" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
                         <% if (typeof activeSubjects !== 'undefined' && activeSubjects.length > 0) { %>
                             <% activeSubjects.forEach(sub => { %>
-                                <button type="button" class="btn btn-outline" onclick="selectSubject('<%= sub %>')"><%= sub %></button>
+                                <button type="button" class="btn btn-outline" data-type="<%= sub.type %>" onclick="selectSubject('<%= sub.name %>', '<%= sub.type %>')"><%= sub.name %></button>
                             <% }) %>
                         <% } %>
                         <button type="button" class="btn btn-primary" onclick="showSubjectDropdown()">عرض الكل...</button>
@@ -1973,7 +2385,7 @@
                     <select name="subject" id="transaction_subject" required onchange="toggleTransactionFields()" style="<%= (typeof activeSubjects !== 'undefined' && activeSubjects.length > 0) ? 'display: none;' : '' %>">
                         <option value="">-- اختر الموضوع --</option>
                         <% subjects.forEach(s => { %>
-                            <option value="<%= s.name %>"><%= s.name %></option>
+                            <option value="<%= s.name %>" data-type="<%= s.type || 'expense' %>"><%= s.name %></option>
                         <% }) %>
                     </select>
                 </div>
@@ -2037,7 +2449,7 @@
                     <label>الموضوع / التصنيف:</label>
                     <select name="subject" id="edit_transaction_subject" required onchange="toggleEditTransactionFields()">
                         <% subjects.forEach(s => { %>
-                            <option value="<%= s.name %>"><%= s.name %></option>
+                            <option value="<%= s.name %>" data-type="<%= s.type || 'expense' %>"><%= s.name %></option>
                         <% }) %>
                     </select>
                 </div>
@@ -2071,11 +2483,140 @@
             </form>
         </div>
     </div>
+    <div id="auctionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="auctionModalTitle">إضافة مزايدة</h3>
+                <span class="close" onclick="closeModal('auctionModal')">&times;</span>
+            </div>
+            <form action="/jam3ya/auctions/save" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="id" id="auctionId">
+                <div class="form-group">
+                    <label>ربط بسجل شراء سابق (اختياري):</label>
+                    <div id="auctionLinkedTransactionWrapper" style="position:relative;">
+                        <input type="text" id="auctionLinkedTransactionSearch" placeholder="بحث بالتاريخ أو الموضوع أو البند..." autocomplete="off">
+                        <input type="hidden" name="linked_transaction_id" id="auctionLinkedTransaction">
+                        <div id="auctionLinkedTransactionResults" class="searchable-results"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>اسم المادة:</label>
+                    <input type="text" name="title" id="auctionTitle" required>
+                </div>
+                <div class="form-group">
+                    <label>الوصف:</label>
+                    <textarea name="description" id="auctionDescription" placeholder="وصف المادة (اختياري)"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>السعر الابتدائي (ر.ع):</label>
+                        <input type="number" step="0.001" name="starting_price" id="auctionStartingPrice" required>
+                    </div>
+                    <div class="form-group">
+                        <label>الحد الأدنى للزيادة (ر.ع):</label>
+                        <input type="number" step="0.001" name="min_increment" id="auctionMinIncrement" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>الكمية (اختياري):</label>
+                        <input type="number" step="0.001" name="quantity" id="auctionQuantity">
+                    </div>
+                    <div class="form-group">
+                        <label>الوحدة (اختياري):</label>
+                        <input type="text" name="unit" id="auctionUnit" placeholder="مثال: كجم، قطعة">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>تاريخ البداية:</label>
+                        <input type="datetime-local" name="start_date" id="auctionStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>تاريخ النهاية:</label>
+                        <input type="datetime-local" name="end_date" id="auctionEndDate" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>حالة المزايدة:</label>
+                    <select name="status" id="auctionStatus">
+                        <option value="draft">مسودة</option>
+                        <option value="published">منشورة</option>
+                        <option value="cancelled">ملغاة</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>صورة المادة:</label>
+                    <div id="auctionImagePreview" style="display:none; margin-bottom:10px;">
+                        <img id="auctionImagePreviewImg" src="" alt="الصورة الحالية" style="max-width:150px; max-height:150px; border-radius:8px; display:block; margin-bottom:6px;">
+                        <small>رفع صورة جديدة أدناه سيستبدل هذه الصورة</small>
+                    </div>
+                    <input type="file" name="auction_image" accept="image/*">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">حفظ المزايدة</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="auctionBidsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="auctionBidsTitle">عروض المزايدة</h3>
+                <span class="close" onclick="closeModal('auctionBidsModal')">&times;</span>
+            </div>
+            <div class="table-container">
+            <table class="table-fit auction-bids-table">
+                <thead>
+                    <tr>
+                        <th>العضو</th>
+                        <th>الهاتف</th>
+                        <th>المبلغ</th>
+                        <th>ترسية</th>
+                    </tr>
+                </thead>
+                <tbody id="auctionBidsBody">
+                    <tr><td colspan="4">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+
     <style>
         @media (max-width: 768px) {
             .hide-on-mobile {
                 display: none;
             }
+        }
+        .searchable-results {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            left: 0;
+            z-index: 50;
+            background: var(--surface, #fff);
+            border: 1px solid var(--border, #ddd);
+            border-radius: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        .searchable-result-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border, #eee);
+        }
+        .searchable-result-item:hover {
+            background: var(--table-header, #f0f0f0);
+        }
+        .searchable-result-item.muted {
+            color: #888;
+            cursor: default;
+        }
+        .searchable-result-item.clear-link {
+            color: #c0392b;
         }
     </style>
 </body>

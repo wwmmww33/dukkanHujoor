@@ -1,0 +1,54 @@
+<main class="main-content">
+    <div class="container" style="max-width: 780px;">
+        <div class="page-header" style="text-align: center; margin-bottom: 1.5rem;">
+            <h2>🔐 تفعيل التطبيقات</h2>
+            <p style="color: #666;">أدخل بيانات التفعيل الخاصة بك للتحقق من صلاحية استخدام التطبيق.</p>
+        </div>
+
+        <div style="background: var(--bg-surface); border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 24px;">
+            <% if (error) { %>
+                <div style="background: #ffe7e7; color: #9f1c1c; border: 1px solid #ffc7c7; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <% if (result && result.success) { %>
+                <div style="background: #e9f9ef; color: #166534; border: 1px solid #b6ebcb; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                    <%= result.message %>
+                </div>
+            <% } %>
+
+            <form method="POST" action="/app-activation" style="display: grid; gap: 12px;">
+                <label>
+                    <div style="margin-bottom: 6px; font-weight: 600;">اسم التطبيق</div>
+                    <input type="text" name="app_name" class="form-input" placeholder="مثال: hujoor-shop" required value="<%= formData.app_name %>">
+                </label>
+
+                <label>
+                    <div style="margin-bottom: 6px; font-weight: 600;">رقم الهاتف</div>
+                    <input type="text" name="phone" class="form-input" placeholder="05xxxxxxxx" required value="<%= formData.phone %>">
+                </label>
+
+                <label>
+                    <div style="margin-bottom: 6px; font-weight: 600;">كود التفعيل</div>
+                    <input type="text" name="activation_code" class="form-input" placeholder="XXXX-XXXX" required value="<%= formData.activation_code %>">
+                </label>
+
+                <div style="display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <label>
+                        <div style="margin-bottom: 6px; font-weight: 600;">اسم الجهاز (اختياري)</div>
+                        <input type="text" name="device_name" class="form-input" placeholder="Samsung A54" value="<%= formData.device_name %>">
+                    </label>
+                    <label>
+                        <div style="margin-bottom: 6px; font-weight: 600;">معرّف الجهاز (اختياري)</div>
+                        <input type="text" name="device_id" class="form-input" placeholder="android-id" value="<%= formData.device_id %>">
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="padding: 12px; font-size: 16px; margin-top: 8px;">
+                    تحقق من التفعيل
+                </button>
+            </form>
+        </div>
+    </div>
+</main>

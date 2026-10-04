@@ -40,6 +40,14 @@ class Jam3yaMySQLAdapter {
                     // Ignore if column exists
                 }
 
+                // Ensure type column exists on subjects (needed for the 'بيع' auction subject seed below)
+                try {
+                    await this.pool.query("ALTER TABLE subjects ADD COLUMN type VARCHAR(20) DEFAULT 'expense'");
+                    console.log("Added type column to subjects table");
+                } catch (e) {
+                    // Ignore if column exists
+                }
+
                 // Ensure decimal precision is correct (3 decimal places for OMR)
                 try {
                     await this.pool.query("ALTER TABLE transactions MODIFY amount DECIMAL(15,3)");
@@ -65,11 +73,61 @@ class Jam3yaMySQLAdapter {
                 } catch (e) {
                     console.error("Visitors table creation failed:", e.message);
                 }
+
+                // Ensure auction tables exist
+                try {
+                    await this.pool.query(this.auctionSchema());
+                    console.log("Auction tables check/creation completed");
+                } catch (e) {
+                    console.error("Auction tables creation failed:", e.message);
+                }
+
+                // Seed 'بيع' subject used by the auction award flow
+                try {
+                    await this.pool.query(
+                        "INSERT INTO subjects (name, type) SELECT 'بيع', 'income' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM subjects WHERE name = 'بيع')"
+                    );
+                } catch (e) {
+                    console.error("Seed 'بيع' subject failed:", e.message);
+                }
             }
         } catch (err) {
             console.error("Jam3ya MySQL Init Error:", err);
             this.initializationError = err;
         }
+    }
+
+    // Auction feature tables (shared by createSchema and the schema-update path)
+    auctionSchema() {
+        return `
+            CREATE TABLE IF NOT EXISTS auction_items (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                image_path VARCHAR(255),
+                starting_price DECIMAL(15,3) NOT NULL,
+                min_increment DECIMAL(15,3) NOT NULL,
+                quantity DECIMAL(15,3),
+                unit VARCHAR(100),
+                start_date DATETIME NOT NULL,
+                end_date DATETIME NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'draft',
+                linked_transaction_id INT,
+                winner_member_id INT,
+                winning_bid_id INT,
+                winner_bid_amount DECIMAL(15,3),
+                awarded_at DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+            CREATE TABLE IF NOT EXISTS auction_bids (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                auction_id INT NOT NULL,
+                member_id INT NOT NULL,
+                amount DECIMAL(15,3) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `;
     }
 
     async createSchema() {
@@ -118,6 +176,10 @@ class Jam3yaMySQLAdapter {
         `;
         try {
             await this.pool.query(schema);
+            await this.pool.query(this.auctionSchema());
+            await this.pool.query(
+                "INSERT INTO subjects (name, type) SELECT 'بيع', 'income' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM subjects WHERE name = 'بيع')"
+            );
             console.log("Jam3ya schema created successfully.");
         } catch (err) {
             console.error("Schema Creation Error:", err);

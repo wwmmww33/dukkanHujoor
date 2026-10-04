@@ -6,7 +6,7 @@
     <title>جمعية الخطوة الأهلية - <%= isAdmin ? 'تسجيل دخول الإدارة' : 'تسجيل دخول الأعضاء' %></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; min-height: 100vh; margin: 0; padding: 30px 15px; box-sizing: border-box; }
         .login-card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
         h2 { color: #2c3e50; margin-bottom: 30px; }
         input { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
@@ -15,9 +15,76 @@
         .error { color: #c0392b; margin-bottom: 15px; font-size: 14px; }
         .back-link { display: block; margin-top: 20px; color: #666; text-decoration: none; font-size: 14px; }
         .brand { font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
+
+        .auctions-wrapper { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 16px; margin-bottom: 25px; }
+        .auction-card { background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 20px; text-align: center; }
+        .auction-image { width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: 12px; }
+        .auction-title { font-weight: bold; color: #2c3e50; font-size: 1.1rem; margin-bottom: 6px; }
+        .auction-desc { color: #555; font-size: 0.9rem; margin-bottom: 6px; }
+        .auction-price { font-size: 1.1rem; color: #27ae60; font-weight: bold; margin: 8px 0; }
+        .auction-meta { color: #888; font-size: 0.85rem; margin-bottom: 6px; }
+        .bid-section { margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px; }
+        .btn-bid { background: #2980b9; margin-bottom: 10px; }
+        .btn-bid:hover { background: #22658f; }
+        .phone-input { margin-bottom: 10px; }
+        .phone-error { color: #c0392b; font-size: 0.85rem; margin-bottom: 8px; min-height: 1em; }
+        .bid-controls { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px; }
+        .step-btn { width: 44px; height: 44px; border-radius: 50%; background: #2980b9; color: white; border: none; font-size: 1.3rem; cursor: pointer; }
+        .proposed-amount { font-size: 1.2rem; font-weight: bold; color: #2c3e50; min-width: 90px; }
+        .verified-as { color: #27ae60; font-size: 0.9rem; margin-bottom: 10px; }
+        .bid-message { font-size: 0.85rem; min-height: 1em; margin-top: 6px; }
     </style>
 </head>
 <body>
+    <% if (typeof activeAuctions !== 'undefined' && activeAuctions.length > 0) { %>
+    <div class="auctions-wrapper">
+        <% activeAuctions.forEach(function(a) { %>
+        <div class="auction-card" data-auction-id="<%= a.id %>" data-min-increment="<%= a.min_increment %>">
+            <% if (a.image_path) { %>
+                <img src="/uploads/<%= a.image_path %>" alt="<%= a.title %>" class="auction-image">
+            <% } %>
+            <div class="auction-title"><i class="fa-solid fa-gavel"></i> <%= a.title %></div>
+            <% if (a.description) { %><div class="auction-desc"><%= a.description %></div><% } %>
+            <% if (a.quantity) { %><div class="auction-desc">الكمية: <%= a.quantity %> <%= a.unit || '' %></div><% } %>
+            <div class="auction-price">السعر الحالي: <span class="current-price"><%= Number(a.current_price).toFixed(3) %></span> ر.ع</div>
+            <div class="auction-meta">عدد العروض: <span class="bid-count"><%= a.bid_count %></span></div>
+            <div class="auction-meta">
+                <% if (a.effective_status === 'upcoming') { %>
+                    تبدأ المزايدة: <%= a.start_date_display %>
+                <% } else { %>
+                    تنتهي المزايدة: <%= a.end_date_display %>
+                <% } %>
+            </div>
+
+            <% if (a.effective_status === 'active') { %>
+            <div class="bid-section">
+                <div class="start-bid-btn">
+                    <button type="button" class="btn-bid" onclick="showPasscodeStep(<%= a.id %>)">أريد المزايدة</button>
+                </div>
+                <div class="phone-entry" style="display:none;">
+                    <input type="password" class="phone-input" placeholder="رمزك السري">
+                    <button type="button" class="btn-bid" onclick="checkPasscode(<%= a.id %>)">تحقق</button>
+                    <div class="phone-error"></div>
+                </div>
+                <div class="bid-widget" style="display:none;">
+                    <div class="verified-as"></div>
+                    <div class="bid-controls">
+                        <button type="button" class="step-btn" onclick="adjustBid(<%= a.id %>, -1)">−</button>
+                        <span class="proposed-amount"></span>
+                        <button type="button" class="step-btn" onclick="adjustBid(<%= a.id %>, 1)">+</button>
+                    </div>
+                    <button type="button" class="btn-bid confirm-bid-btn" onclick="confirmBid(<%= a.id %>)">تأكيد المزايدة</button>
+                    <div class="bid-message"></div>
+                </div>
+            </div>
+            <% } else { %>
+                <div class="auction-meta" style="color:#888;">المزايدة لم تبدأ بعد</div>
+            <% } %>
+        </div>
+        <% }) %>
+    </div>
+    <% } %>
+
     <div class="login-card">
         <div class="brand"><i class="fa-solid fa-users" style="margin-left:8px;"></i>جمعية الخطوة الأهلية</div>
         <h2><%= isAdmin ? 'إدارة الجمعية' : 'تسجيل دخول الأعضاء' %></h2>
@@ -59,6 +126,123 @@
             e.preventDefault();
             var form = document.getElementById('forgot-form');
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        var auctionState = {};
+
+        function getAuctionCard(id) {
+            return document.querySelector('.auction-card[data-auction-id="' + id + '"]');
+        }
+
+        function showPasscodeStep(id) {
+            var card = getAuctionCard(id);
+            card.querySelector('.start-bid-btn').style.display = 'none';
+            card.querySelector('.phone-entry').style.display = 'block';
+        }
+
+        function checkPasscode(id) {
+            var card = getAuctionCard(id);
+            var passcode = card.querySelector('.phone-input').value.trim();
+            var errorBox = card.querySelector('.phone-error');
+            errorBox.textContent = '';
+            if (!passcode) { errorBox.textContent = 'أدخل رمزك السري'; return; }
+
+            fetch('/jam3ya/auctions/' + id + '/check-passcode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ passcode: passcode })
+            })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (!data.success) { errorBox.textContent = data.message || 'الرمز السري غير صحيح'; return; }
+
+                    var minIncrement = parseFloat(card.getAttribute('data-min-increment'));
+                    var currentPrice = parseFloat(card.querySelector('.current-price').textContent);
+                    auctionState[id] = { passcode: passcode, minIncrement: minIncrement, proposed: currentPrice };
+
+                    card.querySelector('.phone-entry').style.display = 'none';
+                    var widget = card.querySelector('.bid-widget');
+                    widget.style.display = 'block';
+                    widget.querySelector('.verified-as').textContent = 'مرحباً ' + data.member_name;
+                    widget.querySelector('.proposed-amount').textContent = currentPrice.toFixed(3);
+                })
+                .catch(function() { errorBox.textContent = 'حدث خطأ في النظام'; });
+        }
+
+        function adjustBid(id, direction) {
+            var card = getAuctionCard(id);
+            var state = auctionState[id];
+            if (!state) return;
+            var currentPrice = parseFloat(card.querySelector('.current-price').textContent);
+            var next = state.proposed + (direction * state.minIncrement);
+            if (next < currentPrice) next = currentPrice;
+            state.proposed = next;
+            card.querySelector('.proposed-amount').textContent = next.toFixed(3);
+        }
+
+        function confirmBid(id) {
+            var card = getAuctionCard(id);
+            var state = auctionState[id];
+            if (!state) return;
+            var messageBox = card.querySelector('.bid-message');
+            messageBox.textContent = '';
+
+            var currentPrice = parseFloat(card.querySelector('.current-price').textContent);
+            if (state.proposed <= currentPrice) {
+                messageBox.style.color = '#c0392b';
+                messageBox.textContent = 'اضغط على + لتحديد قيمة عرضك أولاً';
+                return;
+            }
+
+            fetch('/jam3ya/auctions/' + id + '/bid', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ passcode: state.passcode, amount: state.proposed })
+            })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (!data.success) {
+                        messageBox.style.color = '#c0392b';
+                        messageBox.textContent = data.message || 'فشل تسجيل العرض';
+                        if (typeof data.current_price === 'number') {
+                            card.querySelector('.current-price').textContent = data.current_price.toFixed(3);
+                            state.proposed = data.current_price;
+                            card.querySelector('.proposed-amount').textContent = state.proposed.toFixed(3);
+                        }
+                        return;
+                    }
+                    messageBox.style.color = '#27ae60';
+                    messageBox.textContent = 'تم تسجيل عرضك بنجاح!';
+                    card.querySelector('.current-price').textContent = data.current_price.toFixed(3);
+                    var bidCountEl = card.querySelector('.bid-count');
+                    bidCountEl.textContent = (parseInt(bidCountEl.textContent, 10) || 0) + 1;
+                    state.proposed = data.current_price;
+                    card.querySelector('.proposed-amount').textContent = state.proposed.toFixed(3);
+                })
+                .catch(function() { messageBox.style.color = '#c0392b'; messageBox.textContent = 'حدث خطأ في النظام'; });
+        }
+
+        function pollAuctionStatuses() {
+            document.querySelectorAll('.auction-card').forEach(function(card) {
+                var id = card.getAttribute('data-auction-id');
+                fetch('/jam3ya/auctions/' + id + '/status')
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        if (!data.success) return;
+                        card.querySelector('.current-price').textContent = data.current_price.toFixed(3);
+                        card.querySelector('.bid-count').textContent = data.bid_count;
+                        var state = auctionState[id];
+                        if (state && state.proposed < data.current_price) {
+                            state.proposed = data.current_price;
+                            card.querySelector('.proposed-amount').textContent = data.current_price.toFixed(3);
+                        }
+                    })
+                    .catch(function() {});
+            });
+        }
+
+        if (document.querySelector('.auction-card')) {
+            setInterval(pollAuctionStatuses, 7000);
         }
     </script>
 </body>

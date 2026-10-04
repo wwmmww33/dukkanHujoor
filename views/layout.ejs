@@ -23,6 +23,7 @@
                     <li><a href="/" class="nav-link">الرئيسية</a></li>
 <li><a href="/market" class="nav-link">🛍️ تصفح السوق</a></li>
 <li><a href="/dukkanlar" class="nav-link">🏪 الدكاكين</a></li>
+                    <li><a href="/app-activation" class="nav-link">🔐 تفعيل التطبيقات</a></li>
 
                     <% if (typeof user !== 'undefined' && user && user.id) { %>
                         <!-- روابط المستخدم المسجل دخوله -->
@@ -84,10 +85,11 @@
             <li><a href="/">الرئيسية</a></li>
 <li><a href="/market">🛍️ تصفح السوق</a></li>
 <li><a href="/dukkanlar">🏪 الدكاكين</a></li>
+<li><a href="/app-activation">🔐 تفعيل التطبيقات</a></li>
              <% if (typeof user !== 'undefined' && user && user.id) { %>
                 <li><a href="/add-product">إضافة منتج</a></li>
                 <li><a href="/my-products">منتجاتي</a></li>
-                <li><a href="/profile">الملف الشخصي</a></li
+                <li><a href="/profile">الملف الشخصي</a></li>
                 <% if (user.is_admin) { %>
                     <li><a href="/admin" style="color: var(--warning-color);">لوحة التحكم</a></li>
                 <% } %>
@@ -220,6 +222,58 @@ function openVideoModal(youtubeLink) {
             document.body.removeChild(modalOverlay);
         }
     }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function openProductDetailsModal(productData) {
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'product-modal-overlay';
+
+        const title = escapeHtml(productData.title || 'بدون عنوان');
+        const price = escapeHtml(productData.price || '-');
+        const seller = escapeHtml(productData.seller || '-');
+        const createdAt = escapeHtml(productData.createdAt || '-');
+        const description = escapeHtml(productData.description || 'لا توجد تفاصيل إضافية لهذا المنتج.');
+        const imageHtml = productData.image
+            ? `<img src="${escapeHtml(productData.image)}" alt="${title}" class="product-modal-image">`
+            : '';
+
+        modalOverlay.innerHTML = `
+            <div class="product-modal-content" role="dialog" aria-modal="true" aria-label="تفاصيل المنتج">
+                <button class="product-modal-close-btn" onclick="closeProductDetailsModal()">&times;</button>
+                ${imageHtml}
+                <h3 class="product-modal-title">${title}</h3>
+                <p class="product-modal-price">${price} ريال</p>
+                <div class="product-meta" style="margin-bottom: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <span>👤 ${seller}</span>
+                    <span>📅 ${createdAt}</span>
+                </div>
+                <div class="product-modal-description">
+                    <h3>التفاصيل الكاملة</h3>
+                    <p>${description}</p>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modalOverlay);
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closeProductDetailsModal();
+        });
+    }
+
+    function closeProductDetailsModal() {
+        const modalOverlay = document.querySelector('.product-modal-overlay');
+        if (modalOverlay) {
+            document.body.removeChild(modalOverlay);
+        }
+    }
     // ======== نهاية دوال عرض الصور ========
     
 // --- ربط الأحداث باستخدام التفويض (Event Delegation) ---
@@ -242,8 +296,41 @@ document.body.addEventListener('click', function(event) {
                 if (imageSrc) {
                     openImageModal(imageSrc, productName);
                 }
+                return;
             }
             // ======== نهاية ربط حدث النقر بالصور =======
+
+    const productCard = event.target.closest('.product-card');
+    if (productCard) {
+        if (event.target.closest('a, button, input, textarea, select, .product-actions, .action-buttons')) {
+            return;
+        }
+
+        const title = productCard.getAttribute('data-title') || '';
+        const price = productCard.getAttribute('data-price') || '';
+        const seller = productCard.getAttribute('data-seller') || '';
+        const createdAtRaw = productCard.getAttribute('data-created') || '';
+        const image = productCard.getAttribute('data-image') || '';
+        const descriptionNode = productCard.querySelector('.product-full-description');
+        const fullDescription = descriptionNode ? descriptionNode.value : '';
+
+        let createdAt = '-';
+        if (createdAtRaw) {
+            const date = new Date(createdAtRaw);
+            createdAt = isNaN(date.getTime()) ? createdAtRaw : date.toLocaleDateString('en-GB');
+        }
+
+        openProductDetailsModal({
+            title,
+            price,
+            seller,
+            createdAt,
+            description: fullDescription,
+            image
+        });
+        return;
+    }
+
     // يمكنك إضافة المزيد من "المستمعين" هنا في المستقبل
     // const anotherButton = event.target.closest('.another-class');
     // if (anotherButton) { ... }
@@ -253,6 +340,21 @@ document.body.addEventListener('click', function(event) {
     // الكود الذي يعمل بعد تحميل الصفحة بالكامل
     // =========================================================================
     document.addEventListener('DOMContentLoaded', function() {
+
+        // Defensive cleanup for accidental editor metadata text leaked into rendered content.
+        (function removeEditorMetaLeakText() {
+            const leakPattern = /text\/x-generic\s+index\.ejs\s*\(\s*html document,\s*utf-8 unicode text,\s*with very long lines,\s*with crlf line terminators\s*\)/gi;
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+            const nodes = [];
+            while (walker.nextNode()) nodes.push(walker.currentNode);
+            nodes.forEach((node) => {
+                const original = node.nodeValue || '';
+                const cleaned = original.replace(leakPattern, '').trim();
+                if (cleaned !== original) {
+                    node.nodeValue = cleaned;
+                }
+            });
+        })();
 
         // --- وظائف تبديل الثيم ---
         const themeToggle = document.getElementById('themeToggle');
